@@ -1,0 +1,178 @@
+---
+title: "Collabathon: Checking R(t)"
+author: Chad Milando, PhD*^[Boston University, Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, Biostatistics]; 
+date: "2024-09-24"
+output: html_document
+runtime: shiny
+---
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+```
+
+```{css, echo=FALSE}
+.plotlysize {
+  height: 220px;
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(purrr)
+library(shiny)
+library(splines)
+library(tidyverse)
+```
+
+### EpiEstim
+
+Using the serial interval, check using EpiEstim
+
+```{r EpiEstim, echo = F}
+all_data <- readRDS("~/Downloads/all_data.RDS")
+
+inputPanel(
+  sliderInput("epimax_day", label = "Max day:",
+              min = 5, max = 100, 
+              value = 64, step = 1),
+  sliderInput("window_size", label = "Modeling window:",
+            min = 7, max = 9, 
+            value = 7, step = 1),
+  radioButtons(inputId = 'case_choice', label = 'Which:',
+               choices = c('Daily Infections',
+                           'Daily Onsets',
+                           'Daily Reports'))
+)
+
+epiestim_dat <- reactive({
+  
+  require(EpiEstim)
+  
+  if(is.null(input$case_choice)) return()
+  
+  # print(input$case_choice)
+  rr <- which(colnames(all_data$cases) == input$case_choice)
+  
+  # creates the incidence df
+  incidence_df = data.frame(dates = all_data$cases$day,
+                            I = as.vector(all_data$cases[, rr]))
+  
+  colnames(incidence_df) = c('dates', 'I')
+  
+  # filter based on maxday
+  
+  incidence_df <- incidence_df %>% filter(dates <= input$epimax_day)
+  
+  
+  # ****************
+  # BECAUSE ITS EPIESTIM, remove leading and trailing zeros
+  i = 1
+  ic = c(i)
+  if(incidence_df$I[i] == 0) {
+    while(incidence_df$I[i] == 0) {
+      ic <- c(ic, i)
+      i <- i+1
+    }
+    incidence_df <- incidence_df[-ic,]
+  }
+  
+  i = nrow(incidence_df)
+  ic = c(i)
+  if(incidence_df$I[i] == 0) {
+    while(incidence_df$I[i] == 0) {
+      ic <- c(ic, i)
+      i <- i-1
+    }
+    incidence_df <- incidence_df[-ic,]
+  }
+  # ****************
+  # print(head(incidence_df))
+  # print(tail(incidence_df))
+  
+  # serial interval from data
+  
+  si_sample <- as.matrix(all_data$serial$Px)
+  if(all_data$serial$Day[1] == 1) si_sample <- c(0, si_sample)
+
+  # window size
+  window_size <- input$window_size
+  
+  # estimate R
+  # t_start has to start with 2
+  # and the end is inclusive
+  
+  t_start = (0 + 2):(nrow(incidence_df) - (window_size - 1))
+  t_end = ((window_size - 1) + 2):nrow(incidence_df)
+  
+  print('RUNNING EPIESTIM')
+  getR <- EpiEstim::estimate_R(incidence_df,
+                               method = 'si_from_sample',
+                               si_sample = si_sample,
+                               config = make_config(list(
+                                 t_start = t_start,
+                                 t_end = t_end
+                               )))
+  print('IT WORKED')
+  
+  # output
+  # the R(t) estimate is defined at the end of the window
+  n_days = nrow(incidence_df)
+  
+  x <- data.frame(
+    package = 'EpiEstim',
+    #date = all_data$cases$day[(2 + (window_size - 1)):n_days],
+    date = all_data$cases$day[(2):(n_days - (window_size - 1))],
+    Rt_median = getR$R$`Median(R)`,
+    Rt_lb = getR$R$`Quantile.0.025(R)`,
+    Rt_ub = getR$R$`Quantile.0.975(R)`
+  )
+  
+  x
+  
+})
+
+pp <- reactive({
+  
+  require(patchwork)
+  
+  p1 <- as_tibble(all_data$cases) %>%
+    rename(y = input$case_choice) %>%
+    ggplot() +
+    geom_line(aes(x = day, y = y)) +
+    xlab('Days') + ylab(input$case_choice) +
+    coord_cartesian(xlim = c(0, input$epimax_day)) +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+  
+  p2 <- as_tibble(epiestim_dat()) %>%
+    ggplot() +
+    geom_hline(yintercept = 1, linetype = '11') +
+    geom_line(aes(x = Day, y = Rt), data = all_data$rt) +
+    geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub,
+                    fill = package), alpha = 0.25) +
+    geom_line(aes(x = date, y = Rt_median, color = package)) +
+    coord_cartesian(xlim = c(0, input$epimax_day)) +
+    xlab('Days') + ylab('Rt') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+  )
+  
+   p1 + p2 + plot_layout(ncol = 1)
+  
+})
+
+
+renderPlot({ pp() }, height = 400)
+
+
+
+```

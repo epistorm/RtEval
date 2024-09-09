@@ -153,7 +153,7 @@ renderPlot({
 
 
 ### Derived Generation time distribution
-Generation time is the time between **infection** in the **infector** and **infection** in the **infectee**, dervied as $G_{ij} = I_{i} + P_{ij}$ (Eq. 2.1b).
+Generation time is the time between **infection** in the **infector** and **infection** in the **infectee**, dervied as $G_{ij} = I_{i} + P_{ij}$ (Eq. 2.1b from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
 
 ```{r gen_interval, echo=FALSE}
 
@@ -196,7 +196,7 @@ renderPlot({
 
 
 ### Derived Serial interval distribution
-The serial interval can derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a).
+The serial interval can derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
 
 ```{r serial_interval, echo=FALSE}
 
@@ -593,6 +593,21 @@ dat_all <- reactive({
   
 })
 
+allRt <- reactive({
+  
+  r0 = input$r0
+  rt = rt_grid()$y
+  rinf = input$RTINF
+  max_dt = max(dat_all()$d1)
+  print("****#*#*#")
+  print(max_dt)
+  
+  r_to_extend = max_dt - length(rt)
+  data.frame(x = 1:max_dt,
+             y = c(rt, rep(rinf, r_to_extend)))
+  
+})
+
 renderPlot({
   
   ## summary plot
@@ -626,14 +641,13 @@ renderPlot({
 
 ### Download data
 
-Now can now download **line-list** data for every person within the modeling window, or **aggregated** infections, onsets, and reports by day.
+Now can now download **line-list** data for every person within the modeling window, or **aggregated** infections, onsets, and reports by day. \
 
 ```{r, echo = FALSE}
-mainPanel(
-  downloadButton("downloadData", "LineList data"),
-  downloadButton("downloadAggData", "Aggregated data"),
-  br()
-)
+#mainPanel(
+  downloadButton("downloadData", "LineList data")
+  downloadButton("downloadAggData", "Aggregated data")
+#)
 
 output$downloadData <- downloadHandler(
     filename = function() {
@@ -673,19 +687,20 @@ output$downloadAggData <- downloadHandler(
 
 ```
 
-<br>
-You can also download distributions data.
+
+
+
+You can also download distributions data. 
 
 ```{r, echo = FALSE}
-mainPanel(
-    downloadButton("dist_serial", "Serial interval"),
-    downloadButton("dist_gen", "Generation time"),
-    downloadButton("dist_inc", "Incubation time "),
-    br(), br(),
-    downloadButton("dist_trans", "Transmission time"),
-    downloadButton("reporting_dist", "Reporting delay"),
+#mainPanel(
+    downloadButton("dist_serial", "Serial interval")
+    downloadButton("dist_gen", "Generation time")
+    downloadButton("dist_inc", "Incubation time ") 
+    downloadButton("dist_trans", "Transmission time")
+    downloadButton("reporting_dist", "Reporting delay")
     downloadButton("dist_rt", "Rt")
-)
+#)
 
 ##
 output$dist_serial <- downloadHandler(
@@ -756,8 +771,50 @@ output$dist_rt <- downloadHandler(
     },
     
     content = function(file) {
-        write.csv(as_tibble(rt_grid()), file, row.names = F)
+        write.csv(as_tibble(allRt() %>% rename(Day = x,
+                           "R(t)" = y)) %>%
+                    rbind(), file, row.names = F)
     }
 )
 
 ```
+
+\
+You can also download an RDS of all data. \
+
+```{r, echo = FALSE, out.width='100%'}
+#mainPanel(
+    downloadButton("all_rds", "Save RDS")
+#)
+
+##
+output$all_rds <- downloadHandler(
+    filename = function() {
+        paste0('all_data.RDS')
+    },
+    
+    content = function(file) {
+        saveRDS(object = list(
+          'incubation' = as_tibble(inc_data())%>%rename(Day = x,"Px" = n),
+          'generation' = as_tibble(gen_data())%>%rename(Day = x,"Px" = n),
+          'transmission' = as_tibble(trans_data())%>%rename(Day = x,"Px" = n),
+          'serial' = as_tibble(serial_data())%>%rename(Day = x,"Px" = n),
+          'reporting_delay' = as_tibble(reporting_dist())%>%rename(Day = x,"Px" = n),
+          'rt' = as_tibble(allRt()) %>% rename(Day = x,"Rt" = y),
+          'cases' = as_tibble(dat_all()) %>%
+    rename("Daily Infections" = i1, 
+           "Daily Onsets" = o1, 
+           "Daily Reports" = d1) %>%
+    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                          "Daily Reports")) %>%
+    group_by(name, value) %>% tally() %>% 
+      rename(day = value) %>%
+      pivot_wider(id_cols = day, names_from = name,
+                  values_from = n, values_fill = 0)
+        ), file = file)
+    }
+)
+
+```
+
+
