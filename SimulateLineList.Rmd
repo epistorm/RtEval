@@ -1,0 +1,678 @@
+---
+title: "Collabathon: Simulating line-list data"
+author: Chad Milando, PhD*^[Boston University, Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, Biostatistics]; Tenglong Li, PhD^[Boston University, Biostatistics]
+date: "2024-09-24"
+output: html_document
+runtime: shiny
+---
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+```
+
+```{css, echo=FALSE}
+.plotlysize {
+  height: 220px;
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(purrr)
+library(shiny)
+library(splines)
+library(tidyverse)
+```
+
+This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
+
+To do this, we first simulate **line-list data**, which means you have a single row for each case, that has dates for: infection, symptom onset, positive test, and when this was reported to public health agencies.
+
+Defining terms is helpful at the beginning. [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756) defines 
+terms as following:
+
+```{r pressure, echo=FALSE, fig.cap="Figure 1 from Lehtinen et. al. (2021)", out.width = '60%'}
+knitr::include_graphics("rsif20200756f01.jpg")
+```
+
+* $G_{ij}$ is the generation time, the time between infection in i and infection in j
+* $I_i$ is the incubation time, between infection and sympton onset
+* $P_{ij}$ is the transimission time between symptom onset in i and infection in j
+* $S_{ij}$ is the serial interval, the time between sympton onset in i and symptom onset in j
+
+So for this simulation, we take several steps to simulated how cases spread from one person to another. 
+
+1. Simulate the individual-level incubation time distribution, then 
+2. simulate the individual-level transmission time distribution. 
+
+We then can derive distributions for the generation time and serial interval using the relationships described in [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756). 
+
+We then:
+
+3. simulate the individual-level administrative delay in reporting and 
+4. simulate the population-level infectivity dynamics 
+
+The result is simulated individual line-list and aggregated count data. 
+
+### Incubation time distribution
+Incubation time between **infection** and **symptom onset** for an individual. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum incubation time (1 day) and a maximum incubation time (user defined). NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+
+```{r inc_interval, echo=FALSE}
+INC_MIN = 1
+
+## INPUTS
+inputPanel(
+  # row 1
+  sliderInput("inc_i_mean", label = "NB mean (days)", value = 3, min = 1, max = 15),
+  sliderInput("inc_i_size", label = "NB dispersion", pre = '1e', value = 2, min = -10, max = 10),
+  sliderInput("maxinc", label = "Max. incubation time (days)", value = 11,
+              min = 5, max = 15, step = 1)
+)
+
+inc_data <- reactive({
+  data.frame(x = sample(INC_MIN:input$maxinc, 
+                          size = 5000, 
+                          prob = dnbinom(INC_MIN:input$maxinc, 
+                                         size = 1*10^input$inc_i_size, 
+                                         mu = input$inc_i_mean), 
+                          replace = TRUE) ) %>%
+      group_by(x) %>% tally() %>%
+    mutate(n = n / sum(n)) 
+})
+
+inc_max <- reactive({ max(as_tibble(inc_data())$n) })
+
+renderPlot({
+    as_tibble(inc_data()) %>%
+    ggplot(.,aes(x = x, y = n)) +
+      geom_col(fill = 'white', color = 'black',
+           width = 0.4) +
+  geom_density(stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(inc_max()))) +
+    scale_x_continuous(minor_breaks = 1:15) +
+    xlab('Days') + ylab('P(x)') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+}, height = 200)
+
+```
+
+### Transmission time distribution
+Transmission time between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined).
+
+```{r trans_interval, echo=FALSE}
+TRANS_MIN = 0
+
+## INPUTS
+inputPanel(
+  # row 1
+  sliderInput("trans_i_mean", label = "NB mean (days)", value = 2, min = 1, max = 15),
+  sliderInput("trans_i_size", label = "NB dispersion", pre = '1e', value = 20, min = -10, max = 20),
+  sliderInput("maxtrans", label = "Max. transmission time (days)", value = 10,
+              min = 5, max = 15, step = 1),
+)
+
+trans_data <- reactive({
+      data.frame(x = sample(TRANS_MIN:input$maxtrans, 
+                          size = 5000, 
+                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                                         size = 1*10^input$trans_i_size, 
+                                         mu = input$trans_i_mean), 
+                          replace = TRUE) ) %>%
+      group_by(x) %>% tally() %>%
+    mutate(n = n / sum(n)) 
+})
+
+trans_max <- reactive({ max(as_tibble(trans_data())$n) })
+
+renderPlot({
+    as_tibble(trans_data()) %>%
+    ggplot() +
+      geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
+           width = 0.4) +
+  geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(trans_max()))) +
+    scale_x_continuous(minor_breaks = 1:15) +
+    xlab('Days') + ylab('P(x)') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+}, height = 200)
+
+```
+
+
+### Derived Generation time distribution
+Generation time is the time between **infection** in the **infector** and **infection** in the **infectee**, dervied as $G_{ij} = I_{i} + P_{ij}$ (Eq. 2.1b).
+
+```{r gen_interval, echo=FALSE}
+
+gen_data <- reactive({
+      data.frame(x1 = sample(INC_MIN:input$maxinc, 
+                          size = 5000, 
+                          prob = dnbinom(INC_MIN:input$maxinc, 
+                                         size = 1*10^input$inc_i_size, 
+                                         mu = input$inc_i_mean), 
+                          replace = TRUE),
+               x2 = sample(TRANS_MIN:input$maxtrans, 
+                          size = 5000, 
+                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                                         size = 1*10^input$trans_i_size, 
+                                         mu = input$trans_i_mean), 
+                          replace = TRUE) )     %>%
+    mutate(x = x1 + x2) %>%
+      group_by(x) %>% tally() %>%
+    mutate(n = n / sum(n)) 
+})
+
+gen_max <- reactive({ max(as_tibble(gen_data())$n) })
+
+renderPlot({
+    as_tibble(gen_data()) %>%
+    ggplot() +
+      geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
+           width = 0.4) +
+  geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(gen_max()))) +
+    scale_x_continuous(minor_breaks = 1:15) +
+    xlab('Days') + ylab('P(x)') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+}, height = 200)
+
+```
+
+
+### Derived Serial interval distribution
+The serial interval can derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a).
+
+```{r serial_interval, echo=FALSE}
+
+serial_data <- reactive({
+      data.frame(x1 = sample(INC_MIN:input$maxinc, 
+                          size = 5000, 
+                          prob = dnbinom(INC_MIN:input$maxinc, 
+                                         size = 1*10^input$inc_i_size, 
+                                         mu = input$inc_i_mean), 
+                          replace = TRUE),
+               x2 = sample(TRANS_MIN:input$maxtrans, 
+                          size = 5000, 
+                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                                         size = 1*10^input$trans_i_size, 
+                                         mu = input$trans_i_mean), 
+                          replace = TRUE) ) %>%
+    mutate(x = x1 + x2) %>%
+      group_by(x) %>% tally() %>%
+    mutate(n = n / sum(n))
+})
+
+serial_max <- reactive({ max(as_tibble(serial_data())$n) })
+
+renderPlot({
+    as_tibble(serial_data()) %>%
+    ggplot() +
+      geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
+           width = 0.4) +
+  geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(serial_max()))) +
+    scale_x_continuous(minor_breaks = 1:15) +
+    xlab('Days') + ylab('P(x)') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+}, height = 200)
+
+```
+
+
+### Reporting delay distribution
+Finally, we modeled a reporting delay distribution -- this is the time between **sympotom onset** and **case reporting** to a municipal agency. For this, we parameterized using a the truncated Negative Binomial (NB) distribution that defines the maximum reporting delay distribution. Perfect (i.e., instantaneous) reporting can be modeled with NB mean of 0. 
+
+```{r, echo=FALSE}
+## INPUTS
+inputPanel(
+  # row 1
+  sliderInput("NB_m", label = "NB mean (days)", value = 8, min = 0., max = 20),
+  sliderInput("NB_r", label = "NB dispersion", pre = '1e', value = 2, min = -1, max = 20),
+  sliderInput("maxdelay", label = "Max. reporting delay (days)", value = 11,
+              min = 10, max = 15, step = 1),
+)
+
+reporting_dist <- reactive({
+      data.frame(x = sample(0:input$maxdelay, 
+                          size = 5000, 
+                          prob = dnbinom(0:input$maxdelay, 
+                                         size = 1*10^input$NB_r, 
+                                         mu = input$NB_m), 
+                          replace = TRUE) ) %>%
+      group_by(x) %>% tally() %>%
+    mutate(n = n / sum(n))
+})
+
+reporting_max <- reactive({ max(as_tibble(reporting_dist())$n) })
+
+renderPlot({
+    as_tibble(reporting_dist()) %>%
+    ggplot() +
+      geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
+           width = 0.4) +
+  geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(reporting_max()))) +
+    scale_x_continuous(minor_breaks = 1:15) +
+    xlab('Days') + ylab('P(x)') +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14)
+    )
+}, height = 200)
+
+```
+### R(t) simulation
+
+Assuming you have 100 initial cases (infectors), and distributions above, set the initial $R_0$ and the asymptotic $R(t)$ and simulation parameters.  
+
+```{r get_curves, echo=FALSE}
+
+## INPUTS
+inputPanel(
+  sliderInput("r0", label = "R(t = 0):",
+              min = 0.2, max = 2, value = 1.6, step = 0.1),
+  sliderInput("RTINF", label = "Final R(t):",
+              min = 0.2, max = 2, value = 1, step = 0.1),
+  sliderInput("ld", label = "Modeling window (days)", value = 35,
+              min = 30, max = 60, step = 5)
+)
+```
+
+Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state):
+```{r get_curves2, echo=FALSE}
+# set.seed(4)
+# wild ** set.seed(1) doesn't work....
+# and in general, setting the seed makes this look weird ...
+# *****
+n0  = 100
+
+plot_dat <- reactive({
+  # ----------
+  # one draw from poisson given by lambda = initial cases * initial reproductive number
+  # this gives the first timestep of infectees from the initial cases
+  n1 <- rpois(1, n0 * input$r0) 
+  
+  # so first is the date of infection, 
+  # which is a draw from the transmission distribution
+  i1 = sample(TRANS_MIN:input$maxtrans, 
+                        size = n1, 
+                        prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                                       size = 1*10^input$trans_i_size, 
+                                       mu = input$trans_i_mean), 
+                        replace = TRUE) 
+  
+
+  # next is onset times, which is transmission + incubation
+  o1 = sample(INC_MIN:input$maxinc, 
+                          size = n1, 
+                          prob = dnbinom(INC_MIN:input$maxinc, 
+                                         size = 1*10^input$inc_i_size, 
+                                         mu = input$inc_i_mean), 
+                          replace = TRUE) 
+  o1 = o1 + i1
+
+  # Finally, reporting, which is transmission + incubation + reporting delay
+  d1 = sample(0:input$maxdelay, 
+                          size = n1, 
+                          prob = dnbinom(0:input$maxdelay, 
+                                         size = 1*10^input$NB_r, 
+                                         mu = input$NB_m), 
+                          replace = TRUE)
+  d1 <- o1 + d1
+
+  # add generation #
+  gen_i <- 1
+  gen_i_c <- rep(gen_i, length(i1))
+  
+  # create a combined dataset
+  dat <- cbind(i1, o1, d1, gen_i_c)
+  
+  dat
+})
+# 
+# # Curves
+# # area under the curve should be = 196
+renderPlot({
+  as_tibble(plot_dat()) %>%
+    rename("Daily Infections" = i1,
+           "Daily Onsets" = o1,
+           "Daily Reports" = d1) %>%
+    pivot_longer(cols = c("Daily Infections", "Daily Onsets",
+                          "Daily Reports")) %>%
+    group_by(name, gen_i_c, value) %>% tally() %>%
+    ggplot(.) +
+    geom_bar(aes(x = value, fill = factor(gen_i_c), y = n),
+             position = 'stack', stat = 'identity', color = 'black',
+             lwd = 0.1, fill = '#6495ED') +
+    facet_wrap(~name, nrow = 1) +
+    ylab('N') + xlab('Day') +
+    scale_fill_brewer(name = 'Gen.#', type = 'seq',
+                      direction = 1, palette = 3) +
+    theme_gray() + coord_cartesian(xlim = c(0, as.numeric(input$ld)),
+                                   ylim = c(0, 50)) +
+    theme(
+      axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14),
+          strip.text = element_text(size = 14)
+    )
+}, height = 200)
+```
+
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**, as $R(t=0)$ is defined above). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. Note: if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days.
+
+<div class = 'plotlysize'>
+```{r set_rt, echo=FALSE}
+# PLOT PARAMETERS
+YMAX <- 2
+NPTS <- 8
+BSDEG <- 1
+XSTART <- 1
+
+# REFERENCE: # https://stackoverflow.com/questions/47280032/draggable-line-chart-in-r-shiny
+### asb should be '30'
+rv <- reactiveValues(
+  x = NULL,
+  #y = rep(1, length.out = NPTS)
+  y = c(1.5, 0.5, 0.6, 0.6, 1.28, 1.5, 1.4, 1.38)
+)
+
+observeEvent(input$ld, {
+  rv$x <- seq(XSTART, input$ld, length.out = NPTS)
+})
+
+
+rt_grid <- reactive({
+  this.x <- seq(min(rv$x), max(rv$x), length = input$ld)
+  suppressWarnings(this.y <- predict(this.model(), data.frame(x = this.x)))
+  data.frame(x = this.x, y = this.y)
+})
+
+this.model <- reactive({
+  d <- data.frame(x = rv$x, y = rv$y)
+  lm(y ~ bs(x, degree = BSDEG, knots = rv$x), d)
+})
+
+# Render plot
+renderPlotly({
+  
+  req(rv$x)
+  req(rv$y)
+  req(rt_grid()$x)
+  req(rt_grid()$y)
+  
+  # creates a list of circle shapes from x/y data
+  circles <- map2(
+    rv$x, rv$y,
+    ~ list(
+      type = "circle",
+      # anchor circles
+      xanchor = .x,
+      yanchor = .y,
+      # give each circle a 2 pixel diameter
+      x0 = -4, x1 = 4,
+      y0 = -4, y1 = 4,
+      xsizemode = "pixel",
+      ysizemode = "pixel",
+      # other visual properties
+      fillcolor = "red",
+      ## hover info?
+      ## stroke??
+      line = list(color = "black", stroke = 5)
+    )
+  )
+
+  # plot the shapes and fitted line
+  p <- plot_ly(source="mysource", height=200) %>%
+    add_lines(x = c(XSTART, input$ld), y = c(1, 1), color = I("black"),
+              line = list(widthh=0.5, dash="dot"), showlegend = F) %>%
+    add_lines(x = rt_grid()$x, y = rt_grid()$y, color = I("#F89880"),
+              showlegend = F,
+              hoverinfo = 'y',
+              hovertemplate = paste("%{y:.3f}<extra></extra>")
+              ) %>% 
+    layout(
+        plot_bgcolor = '#f0f0f0', # Light grey background
+        # xaxis
+        xaxis = list(
+          title = "Day",
+          zerolinecolor = "#f0f0f0", # Light grey zeroline color
+          gridcolor = "#ffffff",     # White grid lines
+          titlefont = list(family = "Arial, sans-serif"),
+          tickfont = list(family = "Arial, sans-serif")
+        ),
+        # yaxis
+        yaxis = list(
+          title = "R(t)",
+          range = c(0, YMAX),
+          zerolinecolor = "#f0f0f0", # Light grey zeroline color
+          gridcolor = "#ffffff",     # White grid lines
+          titlefont = list(family = "Arial, sans-serif"),
+          tickfont = list(family = "Arial, sans-serif")
+        ),
+        margin = list(l = 35, r = 0, b = 0, t = 0), # Adjusted margins
+        shapes = circles,
+        font = list(family = "Arial, sans-serif")
+      ) %>%
+      config(edits = list(shapePosition = TRUE)) 
+  
+      #event_register(p, "plotly_relayout")
+    
+    p
+})
+
+# update x/y reactive values in response to changes in shape anchors
+
+observe({
+  ed <- event_data("plotly_relayout", source = 'mysource')
+  shape_anchors <- ed[grepl("^shapes.*anchor$", names(ed))]
+  if (length(shape_anchors) != 2) {
+    return()
+  }
+  row_index <- unique(readr::parse_number(names(shape_anchors)) + 1)
+  pts <- as.numeric(shape_anchors)
+  
+  # some controls on the bounds
+  if(row_index == 1) {
+    rv$x[row_index] <- XSTART
+  } else if (row_index == NPTS) {
+    rv$x[row_index] <- input$ld
+  } else {
+    rv$x[row_index] <- sapply(pts[1], function(x) 
+      ifelse(x < XSTART, XSTART, ifelse(x > input$ld, input$ld, x)))
+  }
+  
+  rv$y[row_index] <- sapply(pts[2], function(y) 
+    ifelse(y < 0, 0, ifelse(y > YMAX, YMAX, y)))
+})
+```
+</div>
+
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red):
+```{r echo=FALSE}
+
+dat_all <- reactive({
+  
+  dat <- as_tibble(plot_dat())
+
+  i1 <- dat$i1
+  gen_i <- 1
+
+  # ----------
+  # while there are any initial infection dates lower than the modeling window
+  # end, simulate the next generation
+  #while (gen_i < 2) {
+  while(any(i1<=input$ld)) {
+    
+    ## new generation
+    gen_i <- gen_i + 1
+
+    ## Infection dates of previous generation
+    date <- as.numeric(names(table(i1)))
+    
+    ## Number of cases on each date
+    no   <- as.numeric(table(i1))
+
+    ## get the next iteration of rT using the file provided.
+    rt = rt_grid()$y
+    rt <- c(rt, rep(input$RTINF, max(date))) ## repeat RTINF until the end of time
+    mu   <- no * rt[date] 
+    
+    ## simulate the next generation of infectees
+    n1   <- sapply(mu, function(mx) rpois(1, mx))
+
+    ## and their infection dates
+    inf1 <- sample(TRANS_MIN:input$maxtrans, 
+                        size = sum(n1), 
+                        prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                                       size = 1*10^input$trans_i_size, 
+                                       mu = input$trans_i_mean), 
+                        replace = TRUE) 
+    
+    # include the start dates before the generation time
+    i1   <- rep(date, times = n1) + inf1
+    
+    ## and thier onset times
+    inc1 <- sample(INC_MIN:input$maxinc, 
+                          size = sum(n1), 
+                          prob = dnbinom(INC_MIN:input$maxinc, 
+                                         size = 1*10^input$inc_i_size, 
+                                         mu = input$inc_i_mean), 
+                          replace = TRUE) 
+      
+    o1   <- i1 + inc1
+    
+    ## Date of report
+    d1   <- o1 + sample(0:input$maxdelay, 
+                          size = sum(n1), 
+                          prob = dnbinom(0:input$maxdelay, 
+                                         size = 1*10^input$NB_r, 
+                                         mu = input$NB_m), 
+                          replace = TRUE)
+    ## 
+    
+    gen_i_c <- rep(gen_i, length(i1))
+    
+    dat1 <- cbind(i1, o1, d1, gen_i_c)
+    ###
+    dat  <- rbind(dat, dat1)
+  }
+  
+  dat
+  
+})
+
+renderPlot({
+  
+  ## summary plot
+  # Curves
+  as_tibble(dat_all()) %>%
+    rename("Daily Infections" = i1, 
+           "Daily Onsets" = o1, 
+           "Daily Reports" = d1) %>%
+    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                          "Daily Reports")) %>%
+    group_by(name, gen_i_c, value) %>% tally() %>%
+    mutate(is_gen_1 = gen_i_c == 1) %>%
+    ggplot(.) +
+    geom_bar(aes(x = value, fill = gen_i_c, y = n, color = is_gen_1, lwd = is_gen_1), 
+             position = 'stack', stat = 'identity') + 
+    facet_wrap(~name, nrow = 1) + 
+    ylab('N') + xlab('Day') +
+    scale_fill_continuous(name = 'Gen. #') +
+    scale_color_manual(name = "", values = c("transparent", "red")) +
+    scale_linewidth_manual(name = "", values = c(0.1, 1)) +
+    # scale_fill_brewer(name = 'Gen.#', type = 'seq', 
+    #                   direction = -1, palette = 3) + 
+    theme_gray() + coord_cartesian(xlim = c(0, input$ld)) +
+    theme(legend.position = 'none',
+                axis.text = element_text(size = 10),
+          axis.title = element_text(size = 14),
+          strip.text = element_text(size = 14))
+  
+}, height = 200 )
+```
+
+### Download data
+
+Now can now download **line-list** data for every person within the modeling window, or **aggregated** infections, onsets, and reports by day.
+
+```{r, echo = FALSE}
+mainPanel(
+  downloadButton("downloadData", "LineList data"),
+  downloadButton("downloadAggData", "Aggregated data")
+)
+
+output$downloadData <- downloadHandler(
+    filename = function() {
+        paste("linelist_data", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(  as_tibble(dat_all()) %>%
+    rename("day_of_infection" = i1, 
+           "day_of_onset" = o1, 
+           "day_of_report" = d1) %>%
+      select(-gen_i_c) %>%
+      mutate(person_id = row_number()) %>%
+      select(person_id, day_of_infection,
+             day_of_onset, day_of_report), file, row.names = F)
+    }
+)
+
+output$downloadAggData <- downloadHandler(
+    filename = function() {
+        paste("aggregated_data", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(  as_tibble(dat_all()) %>%
+    rename("Daily Infections" = i1, 
+           "Daily Onsets" = o1, 
+           "Daily Reports" = d1) %>%
+    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                          "Daily Reports")) %>%
+    group_by(name, value) %>% tally() %>% 
+      rename(day = value) %>%
+      pivot_wider(id_cols = day, names_from = name,
+                  values_from = n, values_fill = 0), file, row.names = F)
+    }
+)
+
+```
+
+You can also download distributions data.
+
+```{r, echo = FALSE}
+mainPanel(
+  downloadButton("downloadSerial", "Serial interval")
+)
+
+output$downloadSerial <- downloadHandler(
+    filename = function() {
+        paste("serial_dist", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(  as_tibble(serial_data()) %>% cbind(1)) 
+    }
+)
+
+```
