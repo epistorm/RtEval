@@ -28,6 +28,7 @@ library(purrr)
 library(shiny)
 library(splines)
 library(tidyverse)
+
 ```
 
 This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
@@ -376,14 +377,14 @@ renderPlot({
 }, height = 200)
 ```
 
-Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**, as $R(t=0)$ is defined above). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. Note: if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days.
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**, as $R(t=0)$ is defined above). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. Note: if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points (right now, b-spline degree = 1).
 
 <div class = 'plotlysize'>
 ```{r set_rt, echo=FALSE}
 # PLOT PARAMETERS
 YMAX <- 2
 NPTS <- 8
-BSDEG <- 1
+BSDEG <- 1 # 1 is linear, 2 is quadratic, 3 is cubic ... 
 XSTART <- 1
 
 # REFERENCE: # https://stackoverflow.com/questions/47280032/draggable-line-chart-in-r-shiny
@@ -440,7 +441,7 @@ renderPlotly({
   )
 
   # plot the shapes and fitted line
-  p <- plot_ly(source="mysource", height=200) %>%
+  p <- plot_ly(source = 'mysource', height=200) %>%
     add_lines(x = c(XSTART, input$ld), y = c(1, 1), color = I("black"),
               line = list(widthh=0.5, dash="dot"), showlegend = F) %>%
     add_lines(x = rt_grid()$x, y = rt_grid()$y, color = I("#F89880"),
@@ -472,16 +473,18 @@ renderPlotly({
         font = list(family = "Arial, sans-serif")
       ) %>%
       config(edits = list(shapePosition = TRUE)) 
-  
-      #event_register(p, "plotly_relayout")
     
     p
 })
 
-# update x/y reactive values in response to changes in shape anchors
+observe({
+    warning("\n************\nCWM Note on 9.24.2024: I haven't figured out how to fix the `plotly` event register warning, it happens when it tries to register the `event_data()` before the plot has data. See this link: https://github.com/plotly/plotly.R/issues/1528\n************\n")
+})
 
+# update x/y reactive values in response to changes in shape anchors
 observe({
   ed <- event_data("plotly_relayout", source = 'mysource')
+  
   shape_anchors <- ed[grepl("^shapes.*anchor$", names(ed))]
   if (length(shape_anchors) != 2) {
     return()
@@ -502,12 +505,13 @@ observe({
   rv$y[row_index] <- sapply(pts[2], function(y) 
     ifelse(y < 0, 0, ifelse(y > YMAX, YMAX, y)))
 })
+
 ```
 </div>
 
 Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red):
 ```{r echo=FALSE}
-
+options(warn=1)
 dat_all <- reactive({
   
   dat <- as_tibble(plot_dat())
@@ -520,20 +524,30 @@ dat_all <- reactive({
   # end, simulate the next generation
   #while (gen_i < 2) {
   while(any(i1<=input$ld)) {
-    
+  
     ## new generation
     gen_i <- gen_i + 1
 
     ## Infection dates of previous generation
     date <- as.numeric(names(table(i1)))
-    
+
     ## Number of cases on each date
     no   <- as.numeric(table(i1))
 
     ## get the next iteration of rT using the file provided.
     rt = rt_grid()$y
-    rt <- c(rt, rep(input$RTINF, max(date))) ## repeat RTINF until the end of time
-    mu   <- no * rt[date] 
+    
+    rt <- c(rt, rep(input$RTINF, times = max(date))) ## repeat RTINF until the end of  
+
+    ### IF THERE IS A 0 you have to add r0
+    if(0 %in% date) {
+      rt_vec = c(input$r0, rt[date])
+    } else {
+      rt_vec = rt[date] 
+    }
+    
+    stopifnot(length(rt_vec) == length(no))
+    mu   <- no * rt_vec
     
     ## simulate the next generation of infectees
     n1   <- sapply(mu, function(mx) rpois(1, mx))
@@ -574,7 +588,7 @@ dat_all <- reactive({
     ###
     dat  <- rbind(dat, dat1)
   }
-  
+
   dat
   
 })
@@ -617,7 +631,8 @@ Now can now download **line-list** data for every person within the modeling win
 ```{r, echo = FALSE}
 mainPanel(
   downloadButton("downloadData", "LineList data"),
-  downloadButton("downloadAggData", "Aggregated data")
+  downloadButton("downloadAggData", "Aggregated data"),
+  br()
 )
 
 output$downloadData <- downloadHandler(
@@ -658,20 +673,90 @@ output$downloadAggData <- downloadHandler(
 
 ```
 
+<br>
 You can also download distributions data.
 
 ```{r, echo = FALSE}
 mainPanel(
-  downloadButton("downloadSerial", "Serial interval")
+    downloadButton("dist_serial", "Serial interval"),
+    downloadButton("dist_gen", "Generation time"),
+    downloadButton("dist_inc", "Incubation time "),
+    br(), br(),
+    downloadButton("dist_trans", "Transmission time"),
+    downloadButton("reporting_dist", "Reporting delay"),
+    downloadButton("dist_rt", "Rt")
 )
 
-output$downloadSerial <- downloadHandler(
+##
+output$dist_serial <- downloadHandler(
     filename = function() {
-        paste("serial_dist", Sys.Date(), ".csv", sep = "")
+        paste("dist_serial", Sys.Date(), ".csv", sep = "")
     },
     
     content = function(file) {
-        write.csv(  as_tibble(serial_data()) %>% cbind(1)) 
+        write.csv(as_tibble(serial_data()) %>%
+                    rename(Day = x,
+                           "P(x)" = n), file, row.names = F)
+    }
+)
+
+##
+output$dist_gen <- downloadHandler(
+    filename = function() {
+        paste("dist_gen", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(as_tibble(gen_data())%>%
+                    rename(Day = x,
+                           "P(x)" = n), file, row.names = F)
+    }
+)
+
+##
+output$dist_inc <- downloadHandler(
+    filename = function() {
+        paste("dist_inc", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(as_tibble(inc_data())%>%
+                    rename(Day = x,
+                           "P(x)" = n), file, row.names = F)
+    }
+)
+
+output$dist_trans <- downloadHandler(
+    filename = function() {
+        paste("dist_trans", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(as_tibble(trans_data())%>%
+                    rename(Day = x,
+                           "P(x)" = n), file, row.names = F)
+    }
+)
+
+output$reporting_dist <- downloadHandler(
+    filename = function() {
+        paste("reporting_dist", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(as_tibble(reporting_dist())%>%
+                    rename(Day = x,
+                           "P(x)" = n), file, row.names = F)
+    }
+)
+
+output$dist_rt <- downloadHandler(
+    filename = function() {
+        paste("dist_rt", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+        write.csv(as_tibble(rt_grid()), file, row.names = F)
     }
 )
 
