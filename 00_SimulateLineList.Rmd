@@ -28,7 +28,6 @@ library(purrr)
 library(shiny)
 library(splines)
 library(tidyverse)
-
 ```
 
 This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
@@ -60,6 +59,13 @@ We then:
 4. simulate the population-level infectivity dynamics 
 
 The result is simulated individual line-list and aggregated count data. 
+
+For reproducibility, we fix the random seed.
+
+```{r seed_set, echo = F}
+inputPanel(shiny::helpText("set.seed(123)"))
+set.seed(123)
+```
 
 ### Incubation time distribution
 Incubation time between **infection** and **symptom onset** for an individual. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum incubation time (1 day) and a maximum incubation time (user defined). NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
@@ -297,7 +303,9 @@ inputPanel(
 )
 ```
 
-Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state):
+Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state).
+
+**NOTE:** The generation to generation offspring are modeled as a Poisson distribution: $n_{i+1} = Poisson(\lambda= n_{i} * R(i))$. This may be updated to a Negative Binomial distribution in future iterations
 ```{r get_curves2, echo=FALSE}
 # set.seed(4)
 # wild ** set.seed(1) doesn't work....
@@ -599,9 +607,6 @@ allRt <- reactive({
   rt = rt_grid()$y
   rinf = input$RTINF
   max_dt = max(dat_all()$d1)
-  print("****#*#*#")
-  print(max_dt)
-  
   r_to_extend = max_dt - length(rt)
   data.frame(x = 1:max_dt,
              y = c(rt, rep(rinf, r_to_extend)))
@@ -621,8 +626,9 @@ renderPlot({
     group_by(name, gen_i_c, value) %>% tally() %>%
     mutate(is_gen_1 = gen_i_c == 1) %>%
     ggplot(.) +
-    geom_bar(aes(x = value, fill = gen_i_c, y = n, color = is_gen_1, lwd = is_gen_1), 
-             position = 'stack', stat = 'identity') + 
+    geom_bar(aes(x = value, fill = gen_i_c, y = n, 
+                 color = is_gen_1, lwd = is_gen_1), 
+             position = 'stack', stat = 'identity', width = 0.8) + 
     facet_wrap(~name, nrow = 1) + 
     ylab('N') + xlab('Day') +
     scale_fill_continuous(name = 'Gen. #') +
@@ -644,10 +650,10 @@ renderPlot({
 Now can now download **line-list** data for every person within the modeling window, or **aggregated** infections, onsets, and reports by day. \
 
 ```{r, echo = FALSE}
-#mainPanel(
-  downloadButton("downloadData", "LineList data")
+inputPanel(
+  downloadButton("downloadData", "LineList data"),
   downloadButton("downloadAggData", "Aggregated data")
-#)
+)
 
 output$downloadData <- downloadHandler(
     filename = function() {
@@ -687,20 +693,19 @@ output$downloadAggData <- downloadHandler(
 
 ```
 
-
-
-
+<br />
 You can also download distributions data. 
 
 ```{r, echo = FALSE}
-#mainPanel(
-    downloadButton("dist_serial", "Serial interval")
-    downloadButton("dist_gen", "Generation time")
-    downloadButton("dist_inc", "Incubation time ") 
-    downloadButton("dist_trans", "Transmission time")
-    downloadButton("reporting_dist", "Reporting delay")
+inputPanel(
+    downloadButton("dist_serial", "Serial interval"),
+    downloadButton("dist_gen", "Generation time"),
+    downloadButton("dist_inc", "Incubation time "),
+    br(), br(), br(),
+    downloadButton("dist_trans", "Transmission time"),
+    downloadButton("reporting_dist", "Reporting delay"),
     downloadButton("dist_rt", "Rt")
-#)
+)
 
 ##
 output$dist_serial <- downloadHandler(
@@ -783,9 +788,9 @@ output$dist_rt <- downloadHandler(
 You can also download an RDS of all data. \
 
 ```{r, echo = FALSE, out.width='100%'}
-#mainPanel(
+inputPanel(
     downloadButton("all_rds", "Save RDS")
-#)
+)
 
 ##
 output$all_rds <- downloadHandler(

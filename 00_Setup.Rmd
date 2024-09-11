@@ -1,0 +1,65 @@
+---
+title: "Collabathon: Setup"
+author: Chad Milando, PhD*^[Boston University, Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, Biostatistics];
+date: "2024-09-24"
+output: html_document
+runtime: shiny
+---
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 750px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+```
+
+```{css, echo=FALSE}
+.plotlysize {
+  height: 220px;
+```
+
+```{r echo=F}
+# Function to check R version and installed packages
+check_requirements <- function() {
+  
+  # Check R version
+  required_version <- "4.0.0"
+  if (getRversion() < required_version) {
+    stop(paste("Your R version is", getRversion(), ". Please update to version", required_version, "or higher."))
+  } else {
+    cat(paste("R version is sufficient:", getRversion(), "\n"))
+  }
+
+}
+
+# Run the check
+check_requirements()
+```
+
+```{r echo=F}
+# Function to check R version and installed packages
+check_requirements <- function() {
+  
+  # List of required packages
+  required_packages <- c("plotly", "purrr", "shiny", 
+                         "splines", "tidyverse")
+  
+  # Check if required packages are installed
+  not_installed <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+  
+  if (length(not_installed) > 0) {
+    cat("The following packages are not installed:", paste(not_installed, collapse = ", "), "\n")
+    cat("Attempting to install missing packages...\n")
+    install.packages(not_installed)
+  } else {
+    cat("All required packages are installed.\n")
+  }
+
+}
+
+# Run the check
+check_requirements()
+```

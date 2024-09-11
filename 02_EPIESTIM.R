@@ -12,77 +12,111 @@ library(EpiEstim)
 library(patchwork)
 
 # Load data
-all_data <- readRDS("~/Downloads/all_data.RDS")
+all_data <- readRDS("~/Downloads/flu_data.RDS")
 
+# ********************************
 # Define input variables (replacing Shiny inputs)
-epimax_day <- 64 # Max day for analysis
+epimax_day <- 82 # Max day for analysis
 window_size <- 7 # Size of the modeling window
-case_choice <- 'Daily Infections' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+case_choice <- 'Daily Onsets' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+
+## so the things you can change are
+## * window size
+## * and the max date to see how it does with more data
+## * the choice of options of wether its infects or cases or onset
+# ********************************
 
 # Estimate R function
-epiestim_dat <- function(epimax_day, window_size, case_choice) {
-  # Filter case data based on selection
-  rr <- which(colnames(all_data$cases) == case_choice)
+library(EpiEstim)
+library(tidyverse)
 
-  incidence_df <- data.frame(dates = all_data$cases$day, I = as.vector(all_data$cases[, rr]))
-  colnames(incidence_df) <- c('dates', 'I')
+# Filter case data based on selection
+rr <- which(colnames(all_data$cases) == case_choice)
 
-  # Filter based on max day
-  incidence_df <- incidence_df %>% filter(dates <= epimax_day)
+incidence_df <- data.frame(dates = all_data$cases$day,
+                           I = as.vector(all_data$cases[, rr]))
 
-  # Remove leading and trailing zeros
-  incidence_df <- incidence_df %>% filter(I != 0)
+colnames(incidence_df) <- c('dates', 'I')
 
-  # Serial interval from data
-  si_sample <- as.matrix(all_data$serial$Px)
-  if (all_data$serial$Day[1] == 1) si_sample <- c(0, si_sample)
+# Filter based on max day
+incidence_df <- incidence_df %>% filter(dates <= epimax_day)
 
-  # Estimate R
-  t_start <- (0 + 2):(nrow(incidence_df) - (window_size - 1))
-  t_end <- ((window_size - 1) + 2):nrow(incidence_df)
+# Remove leading and trailing zeros
+head(incidence_df)
+tail(incidence_df, 10)
 
-  getR <- EpiEstim::estimate_R(incidence_df, method = 'si_from_sample',
-                               si_sample = si_sample,
-                               config = make_config(list(t_start = t_start, t_end = t_end)))
+# remove non-continusou dates
+# do this manually
+incidence_df <- incidence_df[1:min(epimax_day, 82), ]
 
-  data.frame(
-    package = 'EpiEstim',
-    date = all_data$cases$day[(2):(nrow(incidence_df) - (window_size - 1))],
-    Rt_median = getR$R$`Median(R)`,
-    Rt_lb = getR$R$`Quantile.0.025(R)`,
-    Rt_ub = getR$R$`Quantile.0.975(R)`
-  )
-}
+head(incidence_df)
+tail(incidence_df)
+
+incidence_df$dates
+
+## THERE IS A GAP IN DATES !!!!!!
+## THAT IS WHAT IS GOING ON !!!!!
+##
+
+# Serial interval from data
+si_sample <- as.matrix(all_data$serial$Px)
+if (all_data$serial$Day[1] == 1) si_sample <- c(0, si_sample)
+si_sample
+
+# Estimate R
+# set up the window size
+t_start <- (0 + 2):(nrow(incidence_df) - (window_size - 1))
+t_end <- ((window_size - 1) + 2):nrow(incidence_df)
+
+getR <- EpiEstim::estimate_R(incidence_df, method = 'si_from_sample',
+                             si_sample = si_sample,
+                             config = make_config(list(t_start = t_start, t_end = t_end)))
+
+getR$R
+
+plot_r <- data.frame(
+  package = 'EpiEstim',
+  date = all_data$cases$day[(2 + (window_size - 1)):(nrow(incidence_df))],
+  Rt_median = getR$R$`Median(R)`,
+  Rt_lb = getR$R$`Quantile.0.025(R)`,
+  Rt_ub = getR$R$`Quantile.0.975(R)`
+)
+
+plot_r
+
+plot(getR, 'R')
 
 # Generate the plots
-pp <- function(epimax_day, case_choice) {
+p1 <- incidence_df %>%
+  ggplot() +
+  geom_line(aes(x = dates, y = I)) +
+  xlab('Days') + ylab(case_choice) +
+  geom_vline(xintercept = epimax_day, color = 'purple') +
+  coord_cartesian(xlim = c(0, min(epimax_day, 82))) +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 14))
 
-  p1 <- as_tibble(all_data$cases) %>%
-    rename(y = case_choice) %>%
-    ggplot() +
-    geom_line(aes(x = day, y = y)) +
-    xlab('Days') + ylab(case_choice) +
-    coord_cartesian(xlim = c(0, epimax_day)) +
-    theme(axis.text = element_text(size = 10),
-          axis.title = element_text(size = 14))
+p1
 
-  p2 <- as_tibble(epiestim_dat(epimax_day, window_size, case_choice)) %>%
-    ggplot() +
-    geom_hline(yintercept = 1, linetype = '11') +
-    geom_line(aes(x = Day, y = Rt), data = all_data$rt) +
-    geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package), alpha = 0.25) +
-    geom_line(aes(x = date, y = Rt_median, color = package)) +
-    coord_cartesian(xlim = c(0, epimax_day)) +
-    xlab('Days') + ylab('Rt') +
-    theme(axis.text = element_text(size = 10),
-          axis.title = element_text(size = 14))
+p2 <- as_tibble(plot_r) %>%
+  ggplot() +
+  geom_hline(yintercept = 1, linetype = '11') +
+  # *******
+  # this is the true r(t)
+  geom_line(aes(x = Day, y = Rt), data = all_data$rt) +
+  # *******
+  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package), alpha = 0.25) +
+  geom_line(aes(x = date, y = Rt_median, color = package)) +
+  geom_vline(xintercept = epimax_day, color = 'purple') +
+  coord_cartesian(xlim = c(0, min(epimax_day, 82))) +
+  xlab('Days') + ylab('Rt') +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 14))
 
-  p1 + p2 + plot_layout(ncol = 1)
-}
+library(patchwork)
+p1 + p2 + plot(getR, 'R') + plot_layout(ncol = 1)
 
-# Render the plot
-plot <- pp(epimax_day, case_choice)
-
-# Display the plot
-print(plot)
-
+## so the things you can change are
+## * window size
+## * and the max date to see how it does with more data
+## * the choice of options of wether its infects or cases or onset
