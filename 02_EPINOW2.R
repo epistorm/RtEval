@@ -1,7 +1,7 @@
 library(tidyverse)
 require(EpiNow2)
 
-all_data <- readRDS("~/Downloads/flu_data.RDS")
+all_data <- readRDS("rds/all_data.RDS")
 
 # ********************************
 # Define input variables (replacing Shiny inputs)
@@ -16,10 +16,16 @@ rr <- which(colnames(all_data$cases) == case_choice)
 # columsn are called `date` and `confirm`
 incidence_df = data.frame(date = lubridate::make_date(2020, 3, 19) +
                             all_data$cases$day,
-                          Day = all_data$cases$day,
+                          #Day = all_data$cases$day,
                           confirm = as.vector(all_data$cases[, rr]))
 
-colnames(incidence_df) <- c('date', 'Day', 'confirm')
+colnames(incidence_df) <- c('date', 'confirm')
+head(incidence_df)
+tail(incidence_df)
+any(is.na(incidence_df))
+
+## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
+
 
 ####
 gi_pmf <- NonParametric(pmf = all_data$generation$Px)
@@ -27,15 +33,16 @@ gi_pmf <- NonParametric(pmf = all_data$generation$Px)
 delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 
 # Actuall takes several minutes
-# res_epinow <- epinow(
-#   incidence_df,
-#   generation_time = generation_time_opts(gi_pmf),
-#   delays = delay_opts(delay_pmf),
-#   stan = stan_opts(control = list(adapt_delta = 0.9),
-#                    chains = 4, cores = 4)
-# )
-# saveRDS(res_epinow, 'epinow_flu.RDS')
-res_epinow <- readRDS("epinow_flu.RDS")
+## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
+res_epinow <- epinow(
+  incidence_df,
+  generation_time = generation_time_opts(gi_pmf),
+  delays = delay_opts(delay_pmf),
+  stan = stan_opts(control = list(adapt_delta = 0.9),
+                   chains = 4, cores = 4)
+)
+saveRDS(res_epinow, 'rds/epinow_all.RDS')
+# res_epinow <- readRDS("rds/epinow_all.RDS")
 
 y1 <- as_tibble(res_epinow$estimates$summarised %>%
                   filter(variable == 'R'))
@@ -58,6 +65,7 @@ p1 <- incidence_df %>%
         axis.title = element_text(size = 14))
 p1
 
+incidence_df$Day <- all_data$cases$day
 incidence_df <- incidence_df %>% left_join(all_data$rt)
 incidence_df <- incidence_df %>% left_join(y1[, c('date', 'median', 'lower_90', 'upper_90')])
 head(incidence_df)

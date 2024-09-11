@@ -400,7 +400,7 @@ XSTART <- 1
 rv <- reactiveValues(
   x = NULL,
   #y = rep(1, length.out = NPTS)
-  y = c(1.5, 0.5, 0.6, 0.6, 1.28, 1.5, 1.4, 1.38)
+  y = c(1.75, 1.75, 1.75, 0.4, 0.5, 1.75, 1.75, 1.75)
 )
 
 observeEvent(input$ld, {
@@ -517,14 +517,17 @@ observe({
 ```
 </div>
 
-Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red):
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on the **INFECTION DATE** of the previous generation. 
+
 ```{r echo=FALSE}
 options(warn=1)
 dat_all <- reactive({
   
   dat <- as_tibble(plot_dat())
-
-  i1 <- dat$i1
+  
+  # this is the first generation
+  i1 <- dat$i1 # infection date
+  o1 <- dat$o1 # onset date
   gen_i <- 1
 
   # ----------
@@ -536,42 +539,77 @@ dat_all <- reactive({
     ## new generation
     gen_i <- gen_i + 1
 
-    ## Infection dates of previous generation
-    date <- as.numeric(names(table(i1)))
+    ## Onset dates of previous generation
+    ## if you want to change this to onset date, you can put o1
+    ## but then you also have to change when the next generation happens
+    inf_date <- as.numeric(names(table(i1)))
+    ons_date <- as.numeric(names(table(o1)))
+    # print("infection date")
+    # print(inf_date)
+    # print("onset date")
+    # print(ons_date)
 
-    ## Number of cases on each date
-    no   <- as.numeric(table(i1))
-
+    ## Number of cases on each infection or onset date
+    ## again, this can be either i1 or o1, but you have to account for it later
+    inf_no   <- as.numeric(table(i1))
+    ons_no   <- as.numeric(table(o1))
+    # stopifnot(sum(inf_no) == sum(ons_no))
+    # print("infection number")
+    # print(inf_no)
+    # print("onset number")
+    # print(ons_no)
+    
     ## get the next iteration of rT using the file provided.
     rt = rt_grid()$y
     
-    rt <- c(rt, rep(input$RTINF, times = max(date))) ## repeat RTINF until the end of  
+    ## repeat RTINF until the end of the sequence
+    ## this is based on inf_date
+    rt <- c(rt, rep(input$RTINF, times = max(inf_date))) 
 
     ### IF THERE IS A 0 you have to add r0
-    if(0 %in% date) {
-      rt_vec = c(input$r0, rt[date])
+    ## this is based on inf_date
+    if(0 %in% inf_date) {
+      rt_vec = c(input$r0, rt[inf_date])
     } else {
-      rt_vec = rt[date] 
+      rt_vec = rt[inf_date] 
     }
     
-    stopifnot(length(rt_vec) == length(no))
-    mu   <- no * rt_vec
+    stopifnot(length(rt_vec) == length(inf_no))
+    
+    ## then, get a vector of poisson variaables for the 
+    ## mu of poisson offspring for the next generation
+    ## rt_vec is for the specific dates identified in `date`
+    ## if you want this to be based on onset you change this to onset_no
+    mu   <- inf_no * rt_vec
+    # print('mu poisson')
+    # print(mu)
     
     ## simulate the next generation of infectees
+    ## so on the date of symptom onset for current infectees
+    # this is the number of people that will be infected
     n1   <- sapply(mu, function(mx) rpois(1, mx))
+    # print("next generation")
+    # print(n1)
+    # print(sum(n1))
 
-    ## and their infection dates
-    inf1 <- sample(TRANS_MIN:input$maxtrans, 
+    ## and their infection dates, determined by the onset in i + transmission time
+    trans1 <- sample(TRANS_MIN:input$maxtrans, 
                         size = sum(n1), 
                         prob = dnbinom(TRANS_MIN:input$maxtrans, 
                                        size = 1*10^input$trans_i_size, 
                                        mu = input$trans_i_mean), 
                         replace = TRUE) 
+    # print(trans1)
     
     # include the start dates before the generation time
-    i1   <- rep(date, times = n1) + inf1
+    # if you change to infection date, you have include the onset time 
+    # from the previous generation, because you don't get infected until onset
+    onset_days <- do.call(c, sapply(1:length(n1), function(i) {
+      rep(ons_date[i], times = n1[i]) }))
     
-    ## and thier onset times
+    i1   <- onset_days + trans1
+    
+    ## and thier onset times, which is infection + incubation
     inc1 <- sample(INC_MIN:input$maxinc, 
                           size = sum(n1), 
                           prob = dnbinom(INC_MIN:input$maxinc, 
@@ -581,7 +619,7 @@ dat_all <- reactive({
       
     o1   <- i1 + inc1
     
-    ## Date of report
+    ## and then just tack on the Date of report
     d1   <- o1 + sample(0:input$maxdelay, 
                           size = sum(n1), 
                           prob = dnbinom(0:input$maxdelay, 
@@ -601,6 +639,35 @@ dat_all <- reactive({
   
 })
 
+# get aggregated data
+aggDat <- reactive({
+  
+  x <- as_tibble(dat_all())
+  
+  max_dt <- max(x$d1)
+  
+  x1 <- x %>%
+    rename("Daily Infections" = i1, 
+           "Daily Onsets" = o1, 
+           "Daily Reports" = d1) %>%
+    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                          "Daily Reports")) %>%
+    group_by(name, value) %>% tally() %>% 
+      rename(day = value) %>%
+      pivot_wider(id_cols = day, names_from = name,
+                  values_from = n, values_fill = 0)
+  
+  all_dt <- data.frame(day = 0:max_dt)
+  
+  x2 <- all_dt %>% left_join(x1)
+  
+  for(j in 2:ncol(x2)) x2[which(is.na(x2[, j])), j] <- 0
+  
+  x2
+  
+})
+
+# get all Rt values
 allRt <- reactive({
   
   r0 = input$r0
@@ -608,8 +675,8 @@ allRt <- reactive({
   rinf = input$RTINF
   max_dt = max(dat_all()$d1)
   r_to_extend = max_dt - length(rt)
-  data.frame(x = 1:max_dt,
-             y = c(rt, rep(rinf, r_to_extend)))
+  data.frame(x = 0:max_dt,
+             y = c(r0, rt, rep(rinf, r_to_extend)))
   
 })
 
@@ -678,16 +745,7 @@ output$downloadAggData <- downloadHandler(
     },
     
     content = function(file) {
-        write.csv(  as_tibble(dat_all()) %>%
-    rename("Daily Infections" = i1, 
-           "Daily Onsets" = o1, 
-           "Daily Reports" = d1) %>%
-    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
-                          "Daily Reports")) %>%
-    group_by(name, value) %>% tally() %>% 
-      rename(day = value) %>%
-      pivot_wider(id_cols = day, names_from = name,
-                  values_from = n, values_fill = 0), file, row.names = F)
+        write.csv(  as_tibble(aggDat()), file, row.names = F)
     }
 )
 
@@ -806,16 +864,7 @@ output$all_rds <- downloadHandler(
           'serial' = as_tibble(serial_data())%>%rename(Day = x,"Px" = n),
           'reporting_delay' = as_tibble(reporting_dist())%>%rename(Day = x,"Px" = n),
           'rt' = as_tibble(allRt()) %>% rename(Day = x,"Rt" = y),
-          'cases' = as_tibble(dat_all()) %>%
-    rename("Daily Infections" = i1, 
-           "Daily Onsets" = o1, 
-           "Daily Reports" = d1) %>%
-    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
-                          "Daily Reports")) %>%
-    group_by(name, value) %>% tally() %>% 
-      rename(day = value) %>%
-      pivot_wider(id_cols = day, names_from = name,
-                  values_from = n, values_fill = 0)
+          'cases' = as_tibble(aggDat())
         ), file = file)
     }
 )
