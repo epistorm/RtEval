@@ -38,7 +38,7 @@ Defining terms is helpful at the beginning. [Lehtinen et. al. (2021)](https://ro
 terms as following:
 
 ```{r pressure, echo=FALSE, fig.cap="Figure 1 from Lehtinen et. al. (2021)", out.width = '60%'}
-knitr::include_graphics("rsif20200756f01.jpg")
+knitr::include_graphics("img/Lehtinen_fig1.jpg")
 ```
 
 * $G_{ij}$ is the generation time, the time between infection in i and infection in j

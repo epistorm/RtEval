@@ -120,3 +120,26 @@ p1 + p2 + plot(getR, 'R') + plot_layout(ncol = 1)
 ## * window size
 ## * and the max date to see how it does with more data
 ## * the choice of options of wether its infects or cases or onset
+
+
+p3 <- as_tibble(plot_r) %>%
+  ggplot() +
+  geom_hline(yintercept = 1, linetype = '11') +
+  # *******
+  # this is the true r(t)
+  geom_line(aes(x = Day, y = Rt), data = all_data$rt) +
+  # *******
+  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package), alpha = 0.25) +
+  geom_line(aes(x = date, y = Rt_median, color = package)) +
+  geom_ribbon(aes(x = Day,
+                  ymin = lower_90,
+                  ymax = upper_90),
+              fill = 'blue', alpha = 0.25, data = epi2) +
+  geom_line(aes(x = Day, y = median), color = 'blue', data = epi2) +
+  #geom_vline(xintercept = epimax_day, color = 'purple') +
+  coord_cartesian(xlim = c(0, min(epimax_day, 82))) +
+  xlab('Days') + ylab('Rt') +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 14))
+
+p1 + p3 + plot(getR, 'R') + plot_layout(ncol = 1)

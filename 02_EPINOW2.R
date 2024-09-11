@@ -62,24 +62,25 @@ incidence_df <- incidence_df %>% left_join(all_data$rt)
 incidence_df <- incidence_df %>% left_join(y1[, c('date', 'median', 'lower_90', 'upper_90')])
 head(incidence_df)
 
+epi2 <- incidence_df
 
 p2 <- as_tibble(incidence_df) %>%
   ggplot() +
   geom_hline(yintercept = 1, linetype = '11') +
   # *******
   # this is the true r(t)
-  geom_line(aes(x = date, y = Rt)) +
+  geom_line(aes(x = Day, y = Rt)) +
   # *******
-  geom_ribbon(aes(x = date,
+  geom_ribbon(aes(x = Day,
                   ymin = lower_90,
                   ymax = upper_90),
               fill = 'red', alpha = 0.25) +
-  geom_line(aes(x = date, y = median)) +
+  geom_line(aes(x = Day, y = median), color = 'red') +
   xlab('Days') + ylab('Rt') +
   theme(axis.text = element_text(size = 10),
         axis.title = element_text(size = 14))
-
 p2
+ep2 <- p2
 
 library(patchwork)
 p1 + p2 + plot_layout(ncol = 1)
