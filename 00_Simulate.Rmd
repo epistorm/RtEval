@@ -832,7 +832,40 @@ renderPlot({
     calc_rt_df <- calc_rt_df %>%
      filter(!is.na(rt), x <= input$ld)
     
-    ggplot( as_tibble(allRt()) %>% filter(!is.na(y), x <= input$ld), aes(x = x, y = y) ) +
+    ###
+    my_rescale <- function(x, a, b) {
+      new_length = b - a
+      scale_factor = 1.0
+      scaled_p = x / scale_factor
+      new_length * scaled_p + a
+    }
+
+    sx = -0.6
+    
+    second_axis <- data.frame(
+      xmin = c(sx),
+      xmax = c(sx),
+      ymin = c(0.0),
+      ymax = c(0.5)
+    )
+    
+    plotlab <- data.frame(
+      x = -0.2 + 0.1,
+      y = 0.6,
+      lab = 'Transmission P(x)'
+    )
+
+    second_axis_ticks <- data.frame(
+      xmin = c(second_axis$xmin-0.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1),
+      xmax = c(second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax),
+      ymin = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.5),
+      ymax = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.5),
+      lab = c("", "0.25", '', '0.75', "")
+    )
+    
+    ####
+    ggplot( as_tibble(allRt()) %>% 
+              filter(!is.na(y), x <= input$ld), aes(x = x, y = y) ) +
     geom_line() + 
       geom_point() +
     # *****
@@ -841,7 +874,22 @@ renderPlot({
     # *****
     xlab('Day') + ylab('R(t)') +
     # geom_vline(xintercept = input$ld, color = 'purple', linetype = 'dashed') +
+    geom_col(data = as_tibble(trans_data()), 
+                 aes(x = x, y = my_rescale(n, 0, 0.5)),
+              stat = 'identity', fill = '#FF6666', alpha = 0.5) +
     coord_cartesian(ylim = c(0, 2)) +
+        geom_text(data = plotlab, aes(x = x, y = y, label = lab), size = 3,
+            family = 'Helvetica') +
+    ##
+    geom_segment(data = second_axis, aes(x = xmin, xend = xmax, 
+                                   y = ymin, yend = ymax), linewidth = 0.4) +
+    geom_segment(data = second_axis_ticks, aes(x = xmin, xend = xmax, 
+                                               y = ymin, yend = ymax), 
+                 linewidth = 0.2) +
+    geom_text(data = second_axis_ticks, aes(x = xmin - 0.4,  
+                                            y = ymin, label = lab), size = 2,
+              family = 'Helvetica') +
+    
     theme(
       axis.text = element_text(size = 10),
       axis.title = element_text(size = 14))
