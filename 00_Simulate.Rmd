@@ -28,6 +28,7 @@ library(purrr)
 library(shiny)
 library(splines)
 library(tidyverse)
+options(shiny.plot.res=96)
 ```
 
 This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
@@ -102,7 +103,9 @@ inc_data <- reactive({
 })
 
 inc_max <- reactive({ max(as_tibble(inc_data())$n) })
+```
 
+```{r plot1, echo=F, out.width="100%"}
 renderPlot({
     as_tibble(inc_data()) %>%
     ggplot(.,aes(x = x, y = n)) +
@@ -296,7 +299,7 @@ renderPlot({
 ```
 ### R(t) simulation
 
-Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Assuming you have 100 initial cases (infectors), and distributions above.
+Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Assuming you have 1000 initial cases (infectors), and distributions above. Take a second here to look at the graph below and compare to your distributions for incubation and transmission (and reporting delay, if you included that) - do they make sense?
 
 **NOTE:** We are modeling Onset time as synonymous with infectivity, although this may not be true for many diseases. We also assume that the simulation **STARTS on DAY=0**. So the earliest infections will happen on Day 0, and the earliest onsets will happen on Day 1. 
 
@@ -554,7 +557,7 @@ observe({
 
 Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on given by the **GENERATION INTERVAL** of the previous generation -- so, if you get infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will reflect that. 
 
-**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution: $n_{i+1} = Poisson(\lambda= n_{i} * R(i))$. This may be updated to a Negative Binomial distribution in future iterations
+**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution, with an expected value of $\mu(t+1)=R(t) * g(t)$, where $g(t)$ reflects the distribution of the previous generation's generation interval. So for example, a generation of 90 people will have a generation interval distribution that spreads out across several days, lets say 50 on day t+1, and 40 on day t+2. So the expected value of the poisson offspring on day t+1 is $50 * R(t+1)$, and on day t+2 its $40 * R(t+2)$. Then the next generation of individuals on days t+1 and t+2 are set. This may be updated to a Negative Binomial distribution in future iterations
 
 ```{r echo=FALSE}
 dat_all <- reactive({
@@ -860,12 +863,14 @@ renderPlot({
     )
 
     second_axis_ticks <- data.frame(
-      xmin = c(second_axis$xmin-0.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1),
-      xmax = c(second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax),
+      xmin = c(sx-0.1, sx-.1, sx-.1, sx-.1, sx-.1),
+      xmax = c(sx, sx, sx, sx, sx),
       ymin = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
       ymax = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
       lab = c("", "0.25", '', '0.75', "")
     )
+    
+    print(second_axis_ticks)
     
     ####
     ggplot( as_tibble(allRt()) %>% 
@@ -890,8 +895,8 @@ renderPlot({
     geom_segment(data = second_axis_ticks, aes(x = xmin, xend = xmax, 
                                                y = ymin, yend = ymax), 
                  linewidth = 0.2) +
-    geom_text(data = second_axis_ticks, aes(x = xmin - 0.4,  
-                                            y = ymin, label = lab), size = 2,
+    geom_text(data = second_axis_ticks, aes(x = xmin - 0.5,  
+                                            y = ymin, label = lab), size = 3,
               family = 'Helvetica') +
     
     theme(
