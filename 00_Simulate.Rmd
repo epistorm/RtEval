@@ -880,7 +880,7 @@ renderPlot({
     # geom_vline(xintercept = input$ld, color = 'purple', linetype = 'dashed') +
     geom_col(data = as_tibble(trans_data()), 
                  aes(x = x, y = my_rescale(n, 0, 0.73)),
-              stat = 'identity', fill = '#FF6666', alpha = 0.5) +
+              fill = '#FF6666', alpha = 0.5) +
     coord_cartesian(ylim = c(0, 2)) +
         geom_text(data = plotlab, aes(x = x, y = y, label = lab), size = 3,
             family = 'Helvetica') +
