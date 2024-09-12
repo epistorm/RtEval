@@ -1,6 +1,6 @@
 ---
 title: "Collabathon: Simulating line-list data"
-author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Anne Cori, PhD^[Imperial College, London]
+author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; 
 date: "2024-09-24"
 output: html_document
 runtime: shiny
@@ -70,6 +70,10 @@ set.seed(123)
 ```
 
 We parameterized all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+
+#### Acknowledgements
+
+We would like to acknowledge the funding from EpiStorm, as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], and Anne Cori, PhD^[Imperial College, London]
 
 ### Incubation time distribution
 Incubation time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.
@@ -1060,5 +1064,4 @@ output$all_rds <- downloadHandler(
 )
 
 ```
-
 
