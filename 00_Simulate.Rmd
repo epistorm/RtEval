@@ -1,6 +1,6 @@
 ---
 title: "Collabathon: Simulating line-list data"
-author: Chad Milando, PhD*^[Boston University, Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, Biostatistics]; Tenglong Li, PhD^[Boston University, Biostatistics]
+author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics]
 date: "2024-09-24"
 output: html_document
 runtime: shiny
@@ -32,7 +32,7 @@ library(tidyverse)
 
 This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
 
-To do this, we first simulate **line-list data**, which means you have a single row for each case, that has dates for: infection, symptom onset, positive test, and when this was reported to public health agencies.
+To do this, we first walk through the process of simulating **line-list data**, which means you have a single row for each case, that has dates for: infection, symptom onset, positive test, and when this was reported to public health agencies.
 
 Defining terms is helpful at the beginning. [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756) defines 
 terms as following:
@@ -45,6 +45,8 @@ knitr::include_graphics("img/Lehtinen_fig1.jpg")
 * $I_i$ is the incubation time, between infection and sympton onset
 * $P_{ij}$ is the transimission time between symptom onset in i and infection in j
 * $S_{ij}$ is the serial interval, the time between sympton onset in i and symptom onset in j
+
+**NOTE:** Each of these is in reference to the **infector**, so the **infector** ($i$) has a serial interval and a generation interval that is applied to each **infectee** ($j$). This is very important and comes up later.
 
 So for this simulation, we take several steps to simulated how cases spread from one person to another. 
 
@@ -67,8 +69,10 @@ inputPanel(shiny::helpText("set.seed(123)"))
 set.seed(123)
 ```
 
+We parameterized all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+
 ### Incubation time distribution
-Incubation time between **infection** and **symptom onset** for an individual. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum incubation time (1 day) and a maximum incubation time (user defined). NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+Incubation time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.
 
 ```{r inc_interval, echo=FALSE}
 INC_MIN = 1
@@ -76,19 +80,19 @@ INC_MIN = 1
 ## INPUTS
 inputPanel(
   # row 1
-  sliderInput("inc_i_mean", label = "NB mean (days)", value = 3, min = 1, max = 15),
+  sliderInput("inc_i_mean", label = "NB mean (days)", value = 2, min = 1, max = 15),
   sliderInput("inc_i_size", label = "NB dispersion", pre = '1e', value = 2, min = -10, max = 10),
   sliderInput("maxinc", label = "Max. incubation time (days)", value = 11,
               min = 5, max = 15, step = 1)
 )
 
 inc_data <- reactive({
-  data.frame(x = sample(INC_MIN:input$maxinc, 
+  data.frame(x = sample(0:input$maxinc, 
                           size = 5000, 
-                          prob = dnbinom(INC_MIN:input$maxinc, 
+                          prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
-                          replace = TRUE) ) %>%
+                          replace = TRUE) + INC_MIN ) %>%
       group_by(x) %>% tally() %>%
     mutate(n = n / sum(n)) 
 })
@@ -113,7 +117,7 @@ renderPlot({
 ```
 
 ### Transmission time distribution
-Transmission time between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined).
+Transmission time between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
 
 ```{r trans_interval, echo=FALSE}
 TRANS_MIN = 0
@@ -121,19 +125,19 @@ TRANS_MIN = 0
 ## INPUTS
 inputPanel(
   # row 1
-  sliderInput("trans_i_mean", label = "NB mean (days)", value = 2, min = 1, max = 15),
-  sliderInput("trans_i_size", label = "NB dispersion", pre = '1e', value = 20, min = -10, max = 20),
+  sliderInput("trans_i_mean", label = "NB mean (days)", value = 1, min = 0, max = 15),
+  sliderInput("trans_i_size", label = "NB dispersion", pre = '1e', value = 2, min = -10, max = 20),
   sliderInput("maxtrans", label = "Max. transmission time (days)", value = 10,
               min = 5, max = 15, step = 1),
 )
 
 trans_data <- reactive({
-      data.frame(x = sample(TRANS_MIN:input$maxtrans, 
+      data.frame(x = sample(0:input$maxtrans, 
                           size = 5000, 
-                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                          prob = dnbinom(0:input$maxtrans, 
                                          size = 1*10^input$trans_i_size, 
                                          mu = input$trans_i_mean), 
-                          replace = TRUE) ) %>%
+                          replace = TRUE) + TRANS_MIN ) %>%
       group_by(x) %>% tally() %>%
     mutate(n = n / sum(n)) 
 })
@@ -164,18 +168,18 @@ Generation time is the time between **infection** in the **infector** and **infe
 ```{r gen_interval, echo=FALSE}
 
 gen_data <- reactive({
-      data.frame(x1 = sample(INC_MIN:input$maxinc, 
+      data.frame(x1 = sample(0:input$maxinc, 
                           size = 5000, 
-                          prob = dnbinom(INC_MIN:input$maxinc, 
+                          prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
-                          replace = TRUE),
-               x2 = sample(TRANS_MIN:input$maxtrans, 
+                          replace = TRUE) + INC_MIN,
+               x2 = sample(0:input$maxtrans, 
                           size = 5000, 
-                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                          prob = dnbinom(0:input$maxtrans, 
                                          size = 1*10^input$trans_i_size, 
                                          mu = input$trans_i_mean), 
-                          replace = TRUE) )     %>%
+                          replace = TRUE) + TRANS_MIN)     %>%
     mutate(x = x1 + x2) %>%
       group_by(x) %>% tally() %>%
     mutate(n = n / sum(n)) 
@@ -207,18 +211,18 @@ The serial interval can derived from the generation time distribution and the in
 ```{r serial_interval, echo=FALSE}
 
 serial_data <- reactive({
-      data.frame(x1 = sample(INC_MIN:input$maxinc, 
+      data.frame(x1 = sample(0:input$maxinc, 
                           size = 5000, 
-                          prob = dnbinom(INC_MIN:input$maxinc, 
+                          prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
-                          replace = TRUE),
-               x2 = sample(TRANS_MIN:input$maxtrans, 
+                          replace = TRUE) + INC_MIN,
+               x2 = sample(0:input$maxtrans, 
                           size = 5000, 
-                          prob = dnbinom(TRANS_MIN:input$maxtrans, 
+                          prob = dnbinom(0:input$maxtrans, 
                                          size = 1*10^input$trans_i_size, 
                                          mu = input$trans_i_mean), 
-                          replace = TRUE) ) %>%
+                          replace = TRUE) + TRANS_MIN)     %>%
     mutate(x = x1 + x2) %>%
       group_by(x) %>% tally() %>%
     mutate(n = n / sum(n))
@@ -251,7 +255,7 @@ Finally, we modeled a reporting delay distribution -- this is the time between *
 ## INPUTS
 inputPanel(
   # row 1
-  sliderInput("NB_m", label = "NB mean (days)", value = 8, min = 0., max = 20),
+  sliderInput("NB_m", label = "NB mean (days)", value = 0, min = 0., max = 20),
   sliderInput("NB_r", label = "NB dispersion", pre = '1e', value = 2, min = -1, max = 20),
   sliderInput("maxdelay", label = "Max. reporting delay (days)", value = 11,
               min = 10, max = 15, step = 1),
@@ -288,71 +292,72 @@ renderPlot({
 ```
 ### R(t) simulation
 
-Assuming you have 100 initial cases (infectors), and distributions above, set the initial $R_0$ and the asymptotic $R(t)$ and simulation parameters.  
+Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Assuming you have 100 initial cases (infectors), and distributions above.
 
-```{r get_curves, echo=FALSE}
+**NOTE:** We are modeling Onset time as synonymous with infectivity, although this may not be true for many diseases. We also assume that the simulation **STARTS on DAY=0**. So the earliest infections will happen on Day 0, and the earliest onsets will happen on Day 1. 
 
-## INPUTS
-inputPanel(
-  sliderInput("r0", label = "R(t = 0):",
-              min = 0.2, max = 2, value = 1.6, step = 0.1),
-  sliderInput("RTINF", label = "Final R(t):",
-              min = 0.2, max = 2, value = 1, step = 0.1),
-  sliderInput("ld", label = "Modeling window (days)", value = 35,
-              min = 30, max = 60, step = 5)
-)
-```
-
-Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state).
-
-**NOTE:** The generation to generation offspring are modeled as a Poisson distribution: $n_{i+1} = Poisson(\lambda= n_{i} * R(i))$. This may be updated to a Negative Binomial distribution in future iterations
 ```{r get_curves2, echo=FALSE}
-# set.seed(4)
-# wild ** set.seed(1) doesn't work....
-# and in general, setting the seed makes this look weird ...
-# *****
-n0  = 100
+n0  = 1000
 
 plot_dat <- reactive({
   # ----------
   # one draw from poisson given by lambda = initial cases * initial reproductive number
   # this gives the first timestep of infectees from the initial cases
-  n1 <- rpois(1, n0 * input$r0) 
+  # n1 <- rpois(1, n0 * input$r0) 
   
   # so first is the date of infection, 
   # which is a draw from the transmission distribution
-  i1 = sample(TRANS_MIN:input$maxtrans, 
-                        size = n1, 
-                        prob = dnbinom(TRANS_MIN:input$maxtrans, 
+  # NOTE: WHY
+  i1 = sample(0:input$maxtrans, 
+                        size = n0, 
+                        prob = dnbinom(0:input$maxtrans, 
                                        size = 1*10^input$trans_i_size, 
                                        mu = input$trans_i_mean), 
-                        replace = TRUE) 
+                        replace = TRUE) + TRANS_MIN
   
 
   # next is onset times, which is transmission + incubation
-  o1 = sample(INC_MIN:input$maxinc, 
-                          size = n1, 
-                          prob = dnbinom(INC_MIN:input$maxinc, 
+  o1 = sample(0:input$maxinc, 
+                          size = n0, 
+                          prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
-                          replace = TRUE) 
+                          replace = TRUE) + INC_MIN
   o1 = o1 + i1
 
   # Finally, reporting, which is transmission + incubation + reporting delay
   d1 = sample(0:input$maxdelay, 
-                          size = n1, 
+                          size = n0, 
                           prob = dnbinom(0:input$maxdelay, 
                                          size = 1*10^input$NB_r, 
                                          mu = input$NB_m), 
                           replace = TRUE)
   d1 <- o1 + d1
 
+  # in addition, make a new draw for the generation interval with the 
+  # reference person as the infectee
+  # so this it the generation interval for EVERY J that EACH I infects.
+  ## which is o1 + a new transmission draw for the next person
+  ## this just gets the distribution of dates and then the r(t) is applied 
+  ## to the sum to scale up the counts
+  gi1 <- data.frame(x1 = o1,
+               x2 = sample(0:input$maxtrans, 
+                          size = n0, 
+                          prob = dnbinom(0:input$maxtrans, 
+                                         size = 1*10^input$trans_i_size, 
+                                         mu = input$trans_i_mean), 
+                          replace = TRUE) + TRANS_MIN) %>%
+    mutate(x = x1 + x2)
+  
+  # right and these all happen AFTER onset
+  gi1 <- unname(gi1$x)
+  
   # add generation #
   gen_i <- 1
   gen_i_c <- rep(gen_i, length(i1))
   
   # create a combined dataset
-  dat <- cbind(i1, o1, d1, gen_i_c)
+  dat <- cbind(i1, o1, d1, gi1, gen_i_c)
   
   dat
 })
@@ -363,9 +368,10 @@ renderPlot({
   as_tibble(plot_dat()) %>%
     rename("Daily Infections" = i1,
            "Daily Onsets" = o1,
-           "Daily Reports" = d1) %>%
+           "Daily Reports" = d1,
+           "Next GI dist" = gi1) %>%
     pivot_longer(cols = c("Daily Infections", "Daily Onsets",
-                          "Daily Reports")) %>%
+                          "Daily Reports", "Next GI dist")) %>%
     group_by(name, gen_i_c, value) %>% tally() %>%
     ggplot(.) +
     geom_bar(aes(x = value, fill = factor(gen_i_c), y = n),
@@ -375,24 +381,38 @@ renderPlot({
     ylab('N') + xlab('Day') +
     scale_fill_brewer(name = 'Gen.#', type = 'seq',
                       direction = 1, palette = 3) +
-    theme_gray() + coord_cartesian(xlim = c(0, as.numeric(input$ld)),
-                                   ylim = c(0, 50)) +
+    theme_gray() + 
+    #coord_cartesian(xlim = c(0, 30), ylim = c(0, 50)) +
     theme(
       axis.text = element_text(size = 10),
           axis.title = element_text(size = 14),
           strip.text = element_text(size = 14)
-    )
+    ) 
 }, height = 200)
 ```
 
-Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**, as $R(t=0)$ is defined above). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. Note: if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points (right now, b-spline degree = 1).
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**), . Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$. if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points. 
+
+
+```{r bsdeg, echo=FALSE}
+
+inputPanel(
+  # sliderInput("r0", label = "R(t = 0):",
+  #             min = 0.2, max = 2, value = 1.6, step = 0.1),
+  sliderInput("RTINF", label = "Final R(t):",
+              min = 0.2, max = 2, value = 1, step = 0.1),
+  sliderInput("ld", label = "Modeling window (days)", value = 35,
+              min = 30, max = 60, step = 5),
+  sliderInput('BSDEG', 'Spline Degree:', value = 1, min = 1, max = 4, step = 1)
+)
+
+```
 
 <div class = 'plotlysize'>
 ```{r set_rt, echo=FALSE}
 # PLOT PARAMETERS
 YMAX <- 2
 NPTS <- 8
-BSDEG <- 1 # 1 is linear, 2 is quadratic, 3 is cubic ... 
 XSTART <- 1
 
 # REFERENCE: # https://stackoverflow.com/questions/47280032/draggable-line-chart-in-r-shiny
@@ -400,23 +420,31 @@ XSTART <- 1
 rv <- reactiveValues(
   x = NULL,
   #y = rep(1, length.out = NPTS)
-  y = c(1.75, 1.75, 1.75, 0.4, 0.5, 1.75, 1.75, 1.75)
+  y = c(1.1, 1.5, 1.1, 0.5, 1, 1.5, 1, 1)
 )
 
+## these are the spline knots
 observeEvent(input$ld, {
   rv$x <- seq(XSTART, input$ld, length.out = NPTS)
+  #rv$y <- rep(1, times = NPTS)
 })
 
-
+## make sure that the output are on the day
+## so this is a two-step process. first you make the linear data
+## then you predict the spline based on BSDEG
 rt_grid <- reactive({
-  this.x <- seq(min(rv$x), max(rv$x), length = input$ld)
-  suppressWarnings(this.y <- predict(this.model(), data.frame(x = this.x)))
-  data.frame(x = this.x, y = this.y)
+  this.x <- seq(XSTART, input$ld, by = 1)
+  suppressWarnings(this.y <- predict(linear.model(), data.frame(x = this.x)))
+  linear_data = data.frame(x = this.x, y = this.y)
+  X_mat <- bs(x = this.x, knots = rv$x, degree = input$BSDEG)
+  m2 <- lm(this.y ~ X_mat)
+  yspline <- predict(m2)
+  data.frame(x = this.x, y = as.vector(yspline))
 })
 
-this.model <- reactive({
+linear.model <- reactive({
   d <- data.frame(x = rv$x, y = rv$y)
-  lm(y ~ bs(x, degree = BSDEG, knots = rv$x), d)
+  lm(y ~ bs(x, degree = 1, knots = rv$x), d)
 })
 
 # Render plot
@@ -465,7 +493,10 @@ renderPlotly({
           zerolinecolor = "#f0f0f0", # Light grey zeroline color
           gridcolor = "#ffffff",     # White grid lines
           titlefont = list(family = "Arial, sans-serif"),
-          tickfont = list(family = "Arial, sans-serif")
+          tickfont = list(family = "Arial, sans-serif"),
+          range = c(0.1, input$ld + 1)
+          #tickvals = c(2),            # Custom tick at x = 2
+          #ticktext = c("t=2")       # Custom label for x = 2
         ),
         # yaxis
         yaxis = list(
@@ -517,105 +548,123 @@ observe({
 ```
 </div>
 
-Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on the **INFECTION DATE** of the previous generation. 
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on the **ONSET DATE** of the previous generation -- so, if you get infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will reflect that. 
+
+**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution: $n_{i+1} = Poisson(\lambda= n_{i} * R(i))$. This may be updated to a Negative Binomial distribution in future iterations
 
 ```{r echo=FALSE}
-options(warn=1)
 dat_all <- reactive({
   
   dat <- as_tibble(plot_dat())
   
   # this is the first generation
-  i1 <- dat$i1 # infection date
-  o1 <- dat$o1 # onset date
+  i1 <- dat$i1   # infection date
+  o1 <- dat$o1   # onset date
+  gi1 <- dat$gi1 # generation interval
   gen_i <- 1
 
+  # GET RT
+  rt_y = rt_grid()$y
+  rt_x = rt_grid()$x
+  stopifnot(rt_x[1] == 1)
+  stopifnot(rt_x[input$ld] == input$ld)
+  # print(rt_grid()$x)
+  # print(rt_y)
+  
   # ----------
   # while there are any initial infection dates lower than the modeling window
   # end, simulate the next generation
-  #while (gen_i < 2) {
+  # while (gen_i < 2) {
   while(any(i1<=input$ld)) {
   
     ## new generation
+    # print('************')
     gen_i <- gen_i + 1
 
-    ## Onset dates of previous generation
-    ## if you want to change this to onset date, you can put o1
-    ## but then you also have to change when the next generation happens
+    ## Infection or Onset dates of previous generation
     inf_date <- as.numeric(names(table(i1)))
     ons_date <- as.numeric(names(table(o1)))
+    gi_date  <- as.numeric(names(table(gi1)))
     # print("infection date")
     # print(inf_date)
     # print("onset date")
     # print(ons_date)
+    # print("si_date")
+    # print(si_date)
+    ### IF THERE IS A 0 you're screwed
+    if(0 %in% gi_date) stop("0 in gi_date dates")
 
     ## Number of cases on each infection or onset date
-    ## again, this can be either i1 or o1, but you have to account for it later
     inf_no   <- as.numeric(table(i1))
     ons_no   <- as.numeric(table(o1))
-    # stopifnot(sum(inf_no) == sum(ons_no))
+    gi_no    <- as.numeric(table(gi1))
+    stopifnot(sum(inf_no) == sum(ons_no))
+    stopifnot(sum(inf_no) == sum(gi_no))
     # print("infection number")
     # print(inf_no)
     # print("onset number")
     # print(ons_no)
-    
+    # print("si number")
+    # print(si_no)
     ## get the next iteration of rT using the file provided.
-    rt = rt_grid()$y
-    
-    ## repeat RTINF until the end of the sequence
-    ## this is based on inf_date
-    rt <- c(rt, rep(input$RTINF, times = max(inf_date))) 
-
-    ### IF THERE IS A 0 you have to add r0
-    ## this is based on inf_date
-    if(0 %in% inf_date) {
-      rt_vec = c(input$r0, rt[inf_date])
-    } else {
-      rt_vec = rt[inf_date] 
-    }
-    
-    stopifnot(length(rt_vec) == length(inf_no))
+    ## repeat RTINF until the end of the sequence,
+    ## in this case, the largest onset date
+    MAX_DT = 100
+    rt <- c(rt_y, rep(input$RTINF, times = max(MAX_DT))) 
+    stopifnot(length(rt[gi_date]) == length(gi_no))
     
     ## then, get a vector of poisson variaables for the 
     ## mu of poisson offspring for the next generation
     ## rt_vec is for the specific dates identified in `date`
     ## if you want this to be based on onset you change this to onset_no
-    mu   <- inf_no * rt_vec
+    ## so the onset_dates reflect the transmission and incubation from the previous generation
+    ## aka the serial interval
+    ## NOW HERE IS THE REAL REAL QUESTION, SHOULD THE RT BE BASED ON THE DATE OF
+    ## INFECTION OR THE DATE OF GENERATION
+    ## PROBABLY THE DATE OF GENERATION BUT A GOOD QUESTION
+    mu   <- gi_no * rt[gi_date]
     # print('mu poisson')
     # print(mu)
+    
+    # so this gives the expected value of NEW CASES ON SPECIFIC DAYS GIVEN 
+    # the current pool of infectees (ons_no) on those days (ons_date)
     
     ## simulate the next generation of infectees
     ## so on the date of symptom onset for current infectees
     # this is the number of people that will be infected
     n1   <- sapply(mu, function(mx) rpois(1, mx))
-    # print("next generation")
+    # print('next gen')
     # print(n1)
     # print(sum(n1))
 
     ## and their infection dates, determined by the onset in i + transmission time
-    trans1 <- sample(TRANS_MIN:input$maxtrans, 
-                        size = sum(n1), 
-                        prob = dnbinom(TRANS_MIN:input$maxtrans, 
-                                       size = 1*10^input$trans_i_size, 
-                                       mu = input$trans_i_mean), 
-                        replace = TRUE) 
-    # print(trans1)
-    
     # include the start dates before the generation time
     # if you change to infection date, you have include the onset time 
     # from the previous generation, because you don't get infected until onset
-    onset_days <- do.call(c, sapply(1:length(n1), function(i) {
-      rep(ons_date[i], times = n1[i]) }))
     
-    i1   <- onset_days + trans1
+    # Update, no, this is actually determined from the GI of the previous generation
+    next_gen_i_days <- do.call(c, lapply(1:length(n1), function(i) {
+      rep(gi_date[i], times = n1[i]) }))
+    # print(next_gen_i_days)
+
+    # trans1 <- sample(0:input$maxtrans, 
+    #                     size = sum(n1), 
+    #                     prob = dnbinom(0:input$maxtrans, 
+    #                                    size = 1*10^input$trans_i_size, 
+    #                                    mu = input$trans_i_mean), 
+    #                     replace = TRUE) + TRANS_MIN
+    # 
+    # stopifnot(length(onset_days) == length(trans1))
+    
+    i1   <- next_gen_i_days
     
     ## and thier onset times, which is infection + incubation
-    inc1 <- sample(INC_MIN:input$maxinc, 
+    inc1 <- sample(0:input$maxinc, 
                           size = sum(n1), 
-                          prob = dnbinom(INC_MIN:input$maxinc, 
+                          prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
-                          replace = TRUE) 
+                          replace = TRUE) + INC_MIN
       
     o1   <- i1 + inc1
     
@@ -626,11 +675,23 @@ dat_all <- reactive({
                                          size = 1*10^input$NB_r, 
                                          mu = input$NB_m), 
                           replace = TRUE)
-    ## 
     
+    ## And now the generation interval for every subsequent generation produced by 
+    ## this set of infectors
+    ## this is o1 + a new transmission draw
+    gi1 <- data.frame(x1 = o1,
+             x2 = sample(0:input$maxtrans, 
+                        size = sum(n1), 
+                        prob = dnbinom(0:input$maxtrans, 
+                                       size = 1*10^input$trans_i_size, 
+                                       mu = input$trans_i_mean), 
+                        replace = TRUE) + TRANS_MIN) %>% mutate(x = x1 + x2)
+    gi1 <- unname(gi1$x)
+    
+    ##
     gen_i_c <- rep(gen_i, length(i1))
     
-    dat1 <- cbind(i1, o1, d1, gen_i_c)
+    dat1 <- cbind(i1, o1, d1, gi1, gen_i_c)
     ###
     dat  <- rbind(dat, dat1)
   }
@@ -640,6 +701,7 @@ dat_all <- reactive({
 })
 
 # get aggregated data
+# NAs have to be preserved or else
 aggDat <- reactive({
   
   x <- as_tibble(dat_all())
@@ -647,6 +709,7 @@ aggDat <- reactive({
   max_dt <- max(x$d1)
   
   x1 <- x %>%
+    select(-gi1) %>% ## remove g1
     rename("Daily Infections" = i1, 
            "Daily Onsets" = o1, 
            "Daily Reports" = d1) %>%
@@ -655,13 +718,13 @@ aggDat <- reactive({
     group_by(name, value) %>% tally() %>% 
       rename(day = value) %>%
       pivot_wider(id_cols = day, names_from = name,
-                  values_from = n, values_fill = 0)
+                  values_from = n, values_fill = NA) ## MUST BE NA
   
   all_dt <- data.frame(day = 0:max_dt)
   
-  x2 <- all_dt %>% left_join(x1)
+  x2 <- all_dt %>% left_join(x1, by = join_by(day))
   
-  for(j in 2:ncol(x2)) x2[which(is.na(x2[, j])), j] <- 0
+  for(j in 2:ncol(x2)) x2[which(is.na(x2[, j])), j] <- NA ## MUST BE NA
   
   x2
   
@@ -669,14 +732,24 @@ aggDat <- reactive({
 
 # get all Rt values
 allRt <- reactive({
-  
-  r0 = input$r0
-  rt = rt_grid()$y
+  # print("***")
+  rt_y = rt_grid()$y
   rinf = input$RTINF
-  max_dt = max(dat_all()$d1)
-  r_to_extend = max_dt - length(rt)
-  data.frame(x = 0:max_dt,
-             y = c(r0, rt, rep(rinf, r_to_extend)))
+
+  max_dt = max(dat_all()$i1)
+
+  Rall = data.frame(x = 1:max_dt, y = NA)
+  for(i in 1:nrow(Rall)) {
+    if(i <= input$ld) {
+      Rall$y[i] = rt_y[i]
+    } else {
+      Rall$y[i] = rinf
+    }
+  }
+  
+  # print(Rall)
+  # print("***2")
+  Rall
   
 })
 
@@ -685,6 +758,7 @@ renderPlot({
   ## summary plot
   # Curves
   as_tibble(dat_all()) %>%
+    select(-gi1) %>% ## remove g1
     rename("Daily Infections" = i1, 
            "Daily Onsets" = o1, 
            "Daily Reports" = d1) %>%
@@ -703,7 +777,8 @@ renderPlot({
     scale_linewidth_manual(name = "", values = c(0.1, 1)) +
     # scale_fill_brewer(name = 'Gen.#', type = 'seq', 
     #                   direction = -1, palette = 3) + 
-    theme_gray() + coord_cartesian(xlim = c(0, input$ld)) +
+    theme_gray() + 
+    coord_cartesian(xlim = c(0, input$ld)) +
     theme(legend.position = 'none',
                 axis.text = element_text(size = 10),
           axis.title = element_text(size = 14),
@@ -711,6 +786,72 @@ renderPlot({
   
 }, height = 200 )
 ```
+
+### Calculating R(t) from aggregated data
+
+Now, what is the "true" R(t) for infectivity that was calculated here? The R(t) value above is the expected value, but we'd have to predict many scenarios in order to sample and recover that. Instead, we want to calculate what the R(t) was in this specific realization of the expected value.
+
+You can calculate it by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$) to solve for $R(t)$. The black line below replicates the R(t) that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. The key to making this work was using the generation interval from the previous generation to define when the next generation's infection dates where, then using the R(t) values for those infection dates to determine the next round of offspring. 
+
+
+**NOTE:** The beginning of the curve have some expected instability. The beginning because we are drawing randomly from a Poisson process that has no preceeding values to anchor it to. If there is any transmission distribution, these values become shifted, and thus the calculated R(t) based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaenous. What this tells us is that when you have instant transmission, all of the day0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
+
+```{r}
+get_Rt <- function(m, w) {
+
+  R <- rep(NA, length(m))
+  
+  for(t in 2:length(m)) {
+    tau_end = min(length(w), t - 1)
+    c_mat <- w[1:tau_end] %*% m[t - 1:tau_end]
+    R[t] <- m[t] / c_mat
+  }
+  
+  return(R)
+}
+```
+
+
+```{r echo=FALSE}
+renderPlot({
+    
+    ## first, get cases
+    m = aggDat()$`Daily Infections`
+    m[is.na(m)] <- 0
+    
+    # print("**w")
+    ## using generation data, because its infections
+    ## but will be thes ame as serial_interval
+    w = as_tibble(gen_data())$n
+
+    # print(w)
+    calc_rt = get_Rt(m, w)
+    calc_rt_df <- data.frame(rt = calc_rt)
+    calc_rt_df$x = aggDat()$day
+
+    calc_rt_df <- calc_rt_df %>%
+     filter(!is.na(rt), x <= input$ld)
+    
+    ggplot( as_tibble(allRt()) %>% filter(!is.na(y), x <= input$ld), aes(x = x, y = y) ) +
+    geom_line() + 
+      geom_point() +
+    # *****
+    geom_path(data = calc_rt_df, aes(x = x , y = rt), color = 'red') +
+    geom_point(data = calc_rt_df, aes(x = x , y = rt), color = 'red') +
+    # *****
+    xlab('Day') + ylab('R(t)') +
+    # geom_vline(xintercept = input$ld, color = 'purple', linetype = 'dashed') +
+    coord_cartesian(ylim = c(0, 2)) +
+    theme(
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 14))
+  
+  
+}, height = 200 )
+
+```
+
+In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to defined the expected value. This will depend on the extend to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
 
 ### Download data
 
