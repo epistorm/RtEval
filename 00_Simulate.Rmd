@@ -1,6 +1,6 @@
 ---
 title: "Collabathon: Simulating line-list data"
-author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics]
+author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics]; Anne Cori, PhD^[Imperial College, London]
 date: "2024-09-24"
 output: html_document
 runtime: shiny
@@ -710,11 +710,11 @@ aggDat <- reactive({
   
   x1 <- x %>%
     select(-gi1) %>% ## remove g1
-    rename("Daily Infections" = i1, 
-           "Daily Onsets" = o1, 
-           "Daily Reports" = d1) %>%
-    pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
-                          "Daily Reports")) %>%
+    rename("daily_infections" = i1, 
+           "daily_onsets" = o1, 
+           "daily_reports" = d1) %>%
+    pivot_longer(cols = c("daily_infections", "daily_onsets", 
+                          "daily_reports")) %>%
     group_by(name, value) %>% tally() %>% 
       rename(day = value) %>%
       pivot_wider(id_cols = day, names_from = name,
@@ -726,7 +726,7 @@ aggDat <- reactive({
   
   for(j in 2:ncol(x2)) x2[which(is.na(x2[, j])), j] <- NA ## MUST BE NA
   
-  x2
+  x2 %>% filter(day <= input$ld)
   
 })
 
@@ -749,7 +749,7 @@ allRt <- reactive({
   
   # print(Rall)
   # print("***2")
-  Rall
+  Rall %>% filter(x <= input$ld)
   
 })
 
@@ -816,7 +816,7 @@ get_Rt <- function(m, w) {
 renderPlot({
     
     ## first, get cases
-    m = aggDat()$`Daily Infections`
+    m = aggDat()$daily_infections
     m[is.na(m)] <- 0
     
     # print("**w")
@@ -918,6 +918,7 @@ output$downloadData <- downloadHandler(
     
     content = function(file) {
         write.csv(  as_tibble(dat_all()) %>%
+                      filter(i1 <= input$ld) %>%
     rename("day_of_infection" = i1, 
            "day_of_onset" = o1, 
            "day_of_report" = d1) %>%
@@ -963,7 +964,7 @@ output$dist_serial <- downloadHandler(
     content = function(file) {
         write.csv(as_tibble(serial_data()) %>%
                     rename(Day = x,
-                           "P(x)" = n), file, row.names = F)
+                           "PMF" = n), file, row.names = F)
     }
 )
 
@@ -976,7 +977,7 @@ output$dist_gen <- downloadHandler(
     content = function(file) {
         write.csv(as_tibble(gen_data())%>%
                     rename(Day = x,
-                           "P(x)" = n), file, row.names = F)
+                           "PMF" = n), file, row.names = F)
     }
 )
 
@@ -989,7 +990,7 @@ output$dist_inc <- downloadHandler(
     content = function(file) {
         write.csv(as_tibble(inc_data())%>%
                     rename(Day = x,
-                           "P(x)" = n), file, row.names = F)
+                           "PMF" = n), file, row.names = F)
     }
 )
 
@@ -1001,7 +1002,7 @@ output$dist_trans <- downloadHandler(
     content = function(file) {
         write.csv(as_tibble(trans_data())%>%
                     rename(Day = x,
-                           "P(x)" = n), file, row.names = F)
+                           "PMF" = n), file, row.names = F)
     }
 )
 
@@ -1013,7 +1014,7 @@ output$reporting_dist <- downloadHandler(
     content = function(file) {
         write.csv(as_tibble(reporting_dist())%>%
                     rename(Day = x,
-                           "P(x)" = n), file, row.names = F)
+                           "PMF" = n), file, row.names = F)
     }
 )
 
@@ -1024,7 +1025,7 @@ output$dist_rt <- downloadHandler(
     
     content = function(file) {
         write.csv(as_tibble(allRt() %>% rename(Day = x,
-                           "R(t)" = y)) %>%
+                           "Rt" = y)) %>%
                     rbind(), file, row.names = F)
     }
 )
