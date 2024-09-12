@@ -845,21 +845,21 @@ renderPlot({
     second_axis <- data.frame(
       xmin = c(sx),
       xmax = c(sx),
-      ymin = c(0.0),
-      ymax = c(0.5)
+      ymin = c(0.0 - 0.005),
+      ymax = c(0.73 + 0.005)
     )
     
     plotlab <- data.frame(
       x = -0.2 + 0.1,
-      y = 0.6,
+      y = 0.82,
       lab = 'Transmission P(x)'
     )
 
     second_axis_ticks <- data.frame(
       xmin = c(second_axis$xmin-0.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1, second_axis$xmin-.1),
       xmax = c(second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax, second_axis$xmax),
-      ymin = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.5),
-      ymax = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.5),
+      ymin = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
+      ymax = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
       lab = c("", "0.25", '', '0.75', "")
     )
     
@@ -875,7 +875,7 @@ renderPlot({
     xlab('Day') + ylab('R(t)') +
     # geom_vline(xintercept = input$ld, color = 'purple', linetype = 'dashed') +
     geom_col(data = as_tibble(trans_data()), 
-                 aes(x = x, y = my_rescale(n, 0, 0.5)),
+                 aes(x = x, y = my_rescale(n, 0, 0.73)),
               stat = 'identity', fill = '#FF6666', alpha = 0.5) +
     coord_cartesian(ylim = c(0, 2)) +
         geom_text(data = plotlab, aes(x = x, y = y, label = lab), size = 3,
