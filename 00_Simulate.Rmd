@@ -366,12 +366,12 @@ plot_dat <- reactive({
 # # area under the curve should be = 196
 renderPlot({
   as_tibble(plot_dat()) %>%
+    select(-gi1) %>%
     rename("Daily Infections" = i1,
            "Daily Onsets" = o1,
-           "Daily Reports" = d1,
-           "Next GI dist" = gi1) %>%
+           "Daily Reports" = d1) %>%
     pivot_longer(cols = c("Daily Infections", "Daily Onsets",
-                          "Daily Reports", "Next GI dist")) %>%
+                          "Daily Reports")) %>%
     group_by(name, gen_i_c, value) %>% tally() %>%
     ggplot(.) +
     geom_bar(aes(x = value, fill = factor(gen_i_c), y = n),
@@ -548,7 +548,7 @@ observe({
 ```
 </div>
 
-Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on the **ONSET DATE** of the previous generation -- so, if you get infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will reflect that. 
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on given by the **GENERATION INTERVAL** of the previous generation -- so, if you get infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will reflect that. 
 
 **NOTE: ** The generation to generation offspring are modeled as a Poisson distribution: $n_{i+1} = Poisson(\lambda= n_{i} * R(i))$. This may be updated to a Negative Binomial distribution in future iterations
 
