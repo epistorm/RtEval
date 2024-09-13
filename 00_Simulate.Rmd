@@ -33,7 +33,7 @@ options(shiny.plot.res=96)
 
 This R Markdown document walks through the steps of simulating estimates of time-dependent reproductive number, $R(t)$ that can be helpful for surveillance and intervention planning of infectious diseases.
 
-To do this, we first walk through the process of simulating **line-list data**, which means you have a single row for each case, that has dates for: infection, symptom onset, positive test, and when this was reported to public health agencies.
+To do this, we first walk through the process of simulating **line-list data**, which means you have a single row for each case, that has dates for: infection, symptom onset, positive test, and when the case was reported to public health agencies.
 
 Defining terms is helpful at the beginning. [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756) defines 
 terms as following:
@@ -44,12 +44,12 @@ knitr::include_graphics("img/Lehtinen_fig1.jpg")
 
 * $G_{ij}$ is the generation time, the time between infection in i and infection in j
 * $I_i$ is the incubation time, between infection and sympton onset
-* $P_{ij}$ is the transimission time between symptom onset in i and infection in j
+* $P_{ij}$ is the transmission time, defined as the time between symptom onset in i and infection in j
 * $S_{ij}$ is the serial interval, the time between sympton onset in i and symptom onset in j
 
 **NOTE:** Each of these is in reference to the **infector**, so the **infector** ($i$) has a serial interval and a generation interval that is applied to each **infectee** ($j$). This is very important and comes up later.
 
-So for this simulation, we take several steps to simulated how cases spread from one person to another. 
+For this simulation, we take several steps to simulate how cases spread from one person to another. 
 
 1. Simulate the individual-level incubation time distribution, then 
 2. simulate the individual-level transmission time distribution. 
@@ -58,8 +58,8 @@ We then can derive distributions for the generation time and serial interval usi
 
 We then:
 
-3. simulate the individual-level administrative delay in reporting and 
-4. simulate the population-level infectivity dynamics 
+3. simulate the individual-level administrative delay in reporting, and 
+4. simulate the population-level infectivity dynamics. 
 
 The result is simulated individual line-list and aggregated count data. 
 
@@ -70,14 +70,14 @@ inputPanel(shiny::helpText("set.seed(123)"))
 set.seed(123)
 ```
 
-We parameterized all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+We parameterize all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
 
 #### Acknowledgements
 
-We would like to acknowledge the funding from EpiStorm, as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], and Anne Cori, PhD^[Imperial College, London]
+We would like to acknowledge the funding from EpiStorm (CDC NU38FT000013), as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], and Anne Cori, PhD^[Imperial College, London]
 
 ### Incubation time distribution
-Incubation time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.
+Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.
 
 ```{r inc_interval, echo=FALSE}
 INC_MIN = 1
@@ -124,7 +124,7 @@ renderPlot({
 ```
 
 ### Transmission time distribution
-Transmission time between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
+Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
 
 ```{r trans_interval, echo=FALSE}
 TRANS_MIN = 0
@@ -213,7 +213,7 @@ renderPlot({
 
 
 ### Derived Serial interval distribution
-The serial interval can derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
+The serial interval is derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
 
 ```{r serial_interval, echo=FALSE}
 
@@ -256,7 +256,7 @@ renderPlot({
 
 
 ### Reporting delay distribution
-Finally, we modeled a reporting delay distribution -- this is the time between **sympotom onset** and **case reporting** to a municipal agency. For this, we parameterized using a the truncated Negative Binomial (NB) distribution that defines the maximum reporting delay distribution. Perfect (i.e., instantaneous) reporting can be modeled with NB mean of 0. 
+Finally, we model a reporting delay distribution, the time between **sympotom onset** and **case reporting** to a public health agency. For this, we parameterize using a the truncated Negative Binomial (NB) distribution that defines the maximum reporting delay distribution. Perfect (i.e., instantaneous) reporting can be modeled with NB mean of 0. 
 
 ```{r, echo=FALSE}
 ## INPUTS
@@ -299,9 +299,9 @@ renderPlot({
 ```
 ### R(t) simulation
 
-Then describe the daily infections, onsets, and reporting days of first generation (the first round of infectees that you have data on -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Assuming you have 1000 initial cases (infectors), and distributions above. Take a second here to look at the graph below and compare to your distributions for incubation and transmission (and reporting delay, if you included that) - do they make sense?
+We first describe the daily infections, onsets, and reporting days of the first generation (i.e. the first round of infectees in the data -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Here we assumed that there are 1000 initial cases (infectors), and use the distributions defined above. Take a second here to look at the graph below and compare to your distributions for incubation and transmission (and reporting delay, if you included that) - do they make sense?
 
-**NOTE:** We are modeling Onset time as synonymous with infectivity, although this may not be true for many diseases. We also assume that the simulation **STARTS on DAY=0**. So the earliest infections will happen on Day 0, and the earliest onsets will happen on Day 1. 
+**NOTE:** We are modeling onset time as synonymous with infectivity, although this may not be true for many diseases. We also assume that the simulation **STARTS on DAY=0**. So the earliest infections will happen on Day 0, and the earliest onsets will happen on Day 1. 
 
 ```{r get_curves2, echo=FALSE}
 n0  = 1000
@@ -398,7 +398,7 @@ renderPlot({
 }, height = 200)
 ```
 
-Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**), . Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$. if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points. 
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$. if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points. 
 
 
 ```{r bsdeg, echo=FALSE}
@@ -555,9 +555,9 @@ observe({
 ```
 </div>
 
-Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value on given by the **GENERATION INTERVAL** of the previous generation -- so, if you get infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will reflect that. 
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value given by the **GENERATION INTERVAL** of the previous generation. This means that if you are infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will decrease to reflect this change. 
 
-**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution, with an expected value of $\mu(t+1)=R(t) * g(t)$, where $g(t)$ reflects the distribution of the previous generation's generation interval. So for example, a generation of 90 people will have a generation interval distribution that spreads out across several days, lets say 50 on day t+1, and 40 on day t+2. So the expected value of the poisson offspring on day t+1 is $50 * R(t+1)$, and on day t+2 its $40 * R(t+2)$. Then the next generation of individuals on days t+1 and t+2 are set. This may be updated to a Negative Binomial distribution in future iterations
+**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution, with an expected value of $\mu(t+1)=R(t) * g(t)$, where $g(t)$ reflects the distribution of the previous generation's generation interval. So for example, a generation of 90 people will have a generation interval distribution that spreads out across several days, lets say 50 on day t+1, and 40 on day t+2. So the expected value of the poisson offspring on day t+1 is $50 * R(t+1)$, and on day t+2 its $40 * R(t+2)$. Then the next generation of individuals on days t+1 and t+2 are set. This may be updated to a Negative Binomial distribution in future iterations.
 
 ```{r echo=FALSE}
 dat_all <- reactive({
@@ -796,12 +796,12 @@ renderPlot({
 
 ### Calculating R(t) from aggregated data
 
-Now, what is the "true" R(t) for infectivity that was calculated here? The R(t) value above is the expected value, but we'd have to predict many scenarios in order to sample and recover that. Instead, we want to calculate what the R(t) was in this specific realization of the expected value.
+Now, what is the "true" R(t) for infectivity that was calculated here? The R(t) value above is the expected value, but we'd have to predict many scenarios in order estimate that without bias. Instead, we want to calculate what the $R(t)$ was in this specific realization of the expected value.
 
-You can calculate it by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$) to solve for $R(t)$. The black line below replicates the R(t) that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. The key to making this work was using the generation interval from the previous generation to define when the next generation's infection dates where, then using the R(t) values for those infection dates to determine the next round of offspring. 
+It is possible to calculate the realized $R(t)$ by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$) to solve for $R(t)$. The black line below replicates the $R(t)$ that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. The key to making this work was using the generation interval from the previous generation to define when the next generation's infection dates where, then using the $R(t)$ values for those infection dates to determine the next round of offspring. 
 
 
-**NOTE:** The beginning of the curve have some expected instability. The beginning because we are drawing randomly from a Poisson process that has no preceeding values to anchor it to. If there is any transmission distribution, these values become shifted, and thus the calculated R(t) based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaenous. What this tells us is that when you have instant transmission, all of the day0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
+**NOTE:** The beginning of the curve has some expected instability. This is because we are drawing randomly from a Poisson process that has no preceding values to anchor it. If there is any transmission distribution, these values become shifted, and thus the calculated $R(t)$ based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaneous. What this tells us is that when you have instantaneous transmission, all of the day 0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
 
 ```{r}
 get_Rt <- function(m, w) {
@@ -908,7 +908,7 @@ renderPlot({
 
 ```
 
-In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to defined the expected value. This will depend on the extend to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
+In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to defined the expected value. This will depend on the extent to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
 
 ### Download data
 
