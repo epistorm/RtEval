@@ -643,6 +643,14 @@ dat_all <- reactive({
     # print('next gen')
     # print(n1)
     # print(sum(n1))
+    
+    ## *********
+    ## ADD A STOPPING CONDITION
+    if(sum(n1) > 10000) {
+      stop('Next generation of offspring > 10,000. Try changing the shape of R(t)')
+    }
+    ##
+    ## *********
 
     ## and their infection dates, determined by the onset in i + transmission time
     # include the start dates before the generation time
