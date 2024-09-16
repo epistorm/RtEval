@@ -15,7 +15,7 @@ library(EpiEstim)
 library(patchwork)
 
 # Load data
-all_data <- readRDS("rds/all_data.RDS")
+all_data <- readRDS("all_data.RDS")
 
 # ********************************
 # Define input variables (replacing Shiny inputs)

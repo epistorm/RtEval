@@ -1,11 +1,11 @@
 library(tidyverse)
 require(EpiNow2)
 
-all_data <- readRDS("rds/all_data.RDS")
+all_data <- readRDS("all_data.RDS")
 
 # ********************************
 # Define input variables (replacing Shiny inputs)
-case_choice <- 'Daily Reports' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+case_choice <- 'daily_onsets' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
 
 ## so the things you can change are
 ## * the choice of options of wether its infects or cases or onset
@@ -24,22 +24,24 @@ head(incidence_df)
 tail(incidence_df)
 any(is.na(incidence_df))
 
+# incidence_df <- incidence_df[2:nrow(incidence_df), ]
+# any(is.na(incidence_df))
 ## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
 
 
 ####
-gi_pmf <- NonParametric(pmf = all_data$generation$Px)
+gi_pmf <- NonParametric(pmf = all_data$serial$Px)
 
-delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+#delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 
 # Actuall takes several minutes
 ## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
 res_epinow <- epinow(
-  incidence_df,
+  data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
-  delays = delay_opts(delay_pmf),
-  stan = stan_opts(control = list(adapt_delta = 0.9),
-                   chains = 4, cores = 4)
+  delays = delay_opts(dist = Fixed(0)),
+  rt = rt_opts(rw = 1),
+  stan = stan_opts(chains = 4, cores = 4)
 )
 saveRDS(res_epinow, 'rds/epinow_all.RDS')
 # res_epinow <- readRDS("rds/epinow_all.RDS")
@@ -66,8 +68,10 @@ p1 <- incidence_df %>%
 p1
 
 incidence_df$Day <- all_data$cases$day
-incidence_df <- incidence_df %>% left_join(all_data$rt)
-incidence_df <- incidence_df %>% left_join(y1[, c('date', 'median', 'lower_90', 'upper_90')])
+incidence_df <- incidence_df %>% left_join(all_data$rt, by = join_by(Day))
+incidence_df <- incidence_df %>%
+  left_join(y1[, c('date', 'median', 'lower_90', 'upper_90')],
+            by = join_by(date))
 head(incidence_df)
 
 epi2 <- incidence_df
@@ -77,13 +81,14 @@ p2 <- as_tibble(incidence_df) %>%
   geom_hline(yintercept = 1, linetype = '11') +
   # *******
   # this is the true r(t)
-  geom_line(aes(x = Day, y = Rt)) +
+  geom_line(aes(x = Day, y = Rt_calc)) +
   # *******
   geom_ribbon(aes(x = Day,
                   ymin = lower_90,
                   ymax = upper_90),
               fill = 'red', alpha = 0.25) +
   geom_line(aes(x = Day, y = median), color = 'red') +
+  coord_cartesian(ylim = c(0,5)) +
   xlab('Days') + ylab('Rt') +
   theme(axis.text = element_text(size = 10),
         axis.title = element_text(size = 14))

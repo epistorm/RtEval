@@ -74,7 +74,7 @@ We parameterize all distributions (except offspring, which were Poisson for now)
 
 #### Acknowledgements
 
-We would like to acknowledge the funding from EpiStorm (CDC NU38FT000013), as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], and Anne Cori, PhD^[Imperial College, London]
+We would like to acknowledge the funding from EpiStorm (CDC NU38FT000013), as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], Christine Sangphet, BA^[Boston University], and Anne Cori, PhD^[Imperial College, London]
 
 ### Incubation time distribution
 Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.

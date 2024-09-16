@@ -8,7 +8,9 @@ Welcome to the Collabathon
 
 #### Collabathon tasks
 
-- All packages should do a good job of re-creating the red curve, because we are giving them the exact case data and serial interval that were used to create the data. But in reality both have noise. What happens when you introduce some random noise into both estimates. How well do the they do now? What would you do to tune them in order to perform better?
+- **Task 1:** All packages should do a good job of re-creating the red curve, because we are giving them the exact case data and serial interval that were used to create the data. So for your chosen package, what is the best you can do at estimating the calculated R(t) for the simulated data? (See EpiEstim.R for an example)
+
+- **Task 2:** In reality both have noise. What happens when you introduce some random noise into estimated cases and serial interval?. How well do the they do now? What would you do to tune them in order to perform better?
 
 #### Standardizing inputs
 
