@@ -1,11 +1,12 @@
 library(tidyverse)
 require(EpiNow2)
 
-all_data <- readRDS("all_data.RDS")
+url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
+all_data <- readRDS(url(url))
 
 # ********************************
 # Define input variables (replacing Shiny inputs)
-case_choice <- 'daily_onsets' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+case_choice <- 'daily_infections' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
 
 ## so the things you can change are
 ## * the choice of options of wether its infects or cases or onset
