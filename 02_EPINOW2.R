@@ -6,7 +6,8 @@ all_data <- readRDS(url(url))
 
 # ********************************
 # Define input variables (replacing Shiny inputs)
-case_choice <- 'daily_infections' # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+case_choice <- 'daily_infections'
+# Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
 
 ## so the things you can change are
 ## * the choice of options of wether its infects or cases or onset
@@ -17,17 +18,12 @@ rr <- which(colnames(all_data$cases) == case_choice)
 # columsn are called `date` and `confirm`
 incidence_df = data.frame(date = lubridate::make_date(2020, 3, 19) +
                             all_data$cases$day,
-                          #Day = all_data$cases$day,
                           confirm = as.vector(all_data$cases[, rr]))
 
 colnames(incidence_df) <- c('date', 'confirm')
 head(incidence_df)
 tail(incidence_df)
 any(is.na(incidence_df))
-
-# incidence_df <- incidence_df[2:nrow(incidence_df), ]
-# any(is.na(incidence_df))
-## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
 
 
 ####
@@ -44,8 +40,6 @@ res_epinow <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
-saveRDS(res_epinow, 'rds/epinow_all.RDS')
-# res_epinow <- readRDS("rds/epinow_all.RDS")
 
 y1 <- as_tibble(res_epinow$estimates$summarised %>%
                   filter(variable == 'R'))
@@ -98,3 +92,11 @@ ep2 <- p2
 
 library(patchwork)
 p1 + p2 + plot_layout(ncol = 1)
+
+###
+p2_corrected_daily_inf +
+  geom_ribbon(mapping = aes(x = Day,
+                  ymin = lower_90,
+                  ymax = upper_90),
+              fill = 'blue', alpha = 0.25,data = incidence_df) +
+  geom_line(aes(x = Day, y = median), color = 'blue', data = incidence_df)

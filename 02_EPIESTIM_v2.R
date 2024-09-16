@@ -1,7 +1,4 @@
 # Collabathon: Checking R(t)
-# Author: Chad Milando, PhD (Boston University, Environmental Health)
-#         Laura White, PhD (Boston University, Biostatistics)
-# Date: 2024-09-24
 
 # Load required libraries
 library(tidyverse)
@@ -12,6 +9,8 @@ library(EpiEstim)
 
 ## ANNE - to have the backimputation method available
 # install.packages('EpiEstim', repos = c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org'))
+
+# ------------
 # Load data
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
