@@ -59,7 +59,7 @@ if (add_random) {
   set.seed(123)
   #
   nn <- nrow(incidence_df)
-  incidence_df$I <- incidence_df$I + round(rnorm(nn, mean = 0, sd = 30))
+  incidence_df$I <- incidence_df$I + round(rnorm(nn, mean = 0, sd = 50))
   #
   nw <- length(si_distr)
   pu <- runif(nw, 0.1, 1.9)
