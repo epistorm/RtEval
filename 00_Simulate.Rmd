@@ -124,7 +124,7 @@ renderPlot({
 ```
 
 ### Transmission time distribution
-Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual.  We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
+Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual. In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
 
 ```{r trans_interval, echo=FALSE}
 TRANS_MIN = 0
@@ -170,7 +170,7 @@ renderPlot({
 
 
 ### Derived Generation time distribution
-Generation time is the time between **infection** in the **infector** and **infection** in the **infectee**, dervied as $G_{ij} = I_{i} + P_{ij}$ (Eq. 2.1b from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
+Generation time is the time between **infection** in the **infector** and **infection** in the **infectee**, dervied as $G_{ij} = I_{i} + P_{ij}$ (Eq. 2.1b from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)). In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution, so the generation time distribution and serial interval distribution (below) are the same.
 
 ```{r gen_interval, echo=FALSE}
 
@@ -213,7 +213,7 @@ renderPlot({
 
 
 ### Derived Serial interval distribution
-The serial interval is derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)).
+The serial interval is derived from the generation time distribution and the incubation time distribution: $S_{ij} = P_{ij} + I_j$ (Eq. 2.1a from [Lehtinen et. al. (2021)](https://royalsocietypublishing.org/doi/10.1098/rsif.2020.0756)). In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution, so the serial interval distribution and generation time distribution (above) are the same.
 
 ```{r serial_interval, echo=FALSE}
 
@@ -262,7 +262,7 @@ Finally, we model a reporting delay distribution, the time between **sympotom on
 ## INPUTS
 inputPanel(
   # row 1
-  sliderInput("NB_m", label = "NB mean (days)", value = 0, min = 0., max = 20),
+  sliderInput("NB_m", label = "NB mean (days)", value = 1, min = 0., max = 20),
   sliderInput("NB_r", label = "NB dispersion", pre = '1e', value = 2, min = -1, max = 20),
   sliderInput("maxdelay", label = "Max. reporting delay (days)", value = 11,
               min = 10, max = 15, step = 1),
@@ -408,8 +408,8 @@ inputPanel(
   #             min = 0.2, max = 2, value = 1.6, step = 0.1),
   sliderInput("RTINF", label = "Final R(t):",
               min = 0.2, max = 2, value = 1, step = 0.1),
-  sliderInput("ld", label = "Modeling window (days)", value = 35,
-              min = 30, max = 60, step = 5),
+  sliderInput("ld", label = "Modeling window (days)", value = 60,
+              min = 30, max = 100, step = 5),
   sliderInput('BSDEG', 'Spline Degree:', value = 1, min = 1, max = 4, step = 1)
 )
 
