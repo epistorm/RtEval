@@ -8,7 +8,7 @@ Welcome to the Collabathon
 
 #### Collabathon tasks
 
-- All packages should do a good job of re-creating the red curve, because we are giving them the exact case data and serial interval that were used to create the data. But in reality both have noise. What happens when you introduce some random noise into both estimates. How well do the they do now? What would you do to tune them in order to perform better
+- All packages should do a good job of re-creating the red curve, because we are giving them the exact case data and serial interval that were used to create the data. But in reality both have noise. What happens when you introduce some random noise into both estimates. How well do the they do now? What would you do to tune them in order to perform better?
 
 #### Standardizing inputs
 
@@ -19,4 +19,8 @@ Welcome to the Collabathon
 
 - The plot resolution in 00_simulate could be higher. in fact, it seems to be good for plotly but not good for the gplot images. I don't quite know how to solve this. I tried [this hack](https://stackoverflow.com/questions/51409188/how-to-use-display-a-plot-with-high-resolution-in-a-shiny-app) but didn't really seem worth it. Open to other ideas
 
+- add random noise
 
+#### Vizualzation
+
+- what to do next to look at how the models are performing differently at different time points. (or at the same time point with different amounts of data available)
