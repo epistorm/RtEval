@@ -23,6 +23,22 @@ Welcome to the Collabathon
 
 - add random noise
 
+-- Other packages to test:
+
+ * [CM] EpiNow2
+ * [CM] EpiEstim
+ * [CM] EpiLPS
+ * ern
+ * R0
+ * EarlyR
+ * EpiTrix
+ * RtEstim
+ * 
+ 
+
+ 
+
+
 #### Vizualzation
 
 - what to do next to look at how the models are performing differently at different time points. (or at the same time point with different amounts of data available)

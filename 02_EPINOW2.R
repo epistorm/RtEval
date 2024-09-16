@@ -9,16 +9,15 @@ all_data <- readRDS(url(url))
 case_choice <- 'daily_infections'
 # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
 
-## so the things you can change are
-## * the choice of options of wether its infects or cases or onset
-# ********************************
 
 rr <- which(colnames(all_data$cases) == case_choice)
 
 # columsn are called `date` and `confirm`
-incidence_df = data.frame(date = lubridate::make_date(2020, 3, 19) +
-                            all_data$cases$day,
-                          confirm = as.vector(all_data$cases[, rr]))
+incidence_df = data.frame(
+  date = lubridate::make_date(2020, 3, 19) + 1:nrow(all_data$cases),
+  confirm = as.vector(all_data$cases[, rr]))
+
+dim(incidence_df)
 
 colnames(incidence_df) <- c('date', 'confirm')
 head(incidence_df)
@@ -41,62 +40,39 @@ res_epinow <- epinow(
   stan = stan_opts(chains = 4, cores = 4)
 )
 
-y1 <- as_tibble(res_epinow$estimates$summarised %>%
-                  filter(variable == 'R'))
+incidence_df$day = all_data$cases$day
 
-y1
+y_extract <- rstan::extract(res_epinow$estimates$fit)$R
+dim(y_extract)
 
-y2 <- as_tibble(res_epinow$estimates$summarised %>%
-                  filter(variable == 'reported_cases'))
-y2
+# y_date = res_epinow$estimates$summarised %>% filter(variable == 'R')
+# head(y_date)
+# View(res_epinow$samples)
 
-# Generate the plots
-p1 <- incidence_df %>%
+plot_data <- data.frame(
+  package = "EpiNow2",
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
+  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
+  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
+  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
+)
+
+as_tibble(plot_data) %>%
   ggplot() +
-  geom_line(aes(x = date, y = confirm)) +
-  geom_line(data = y2, aes(x = date, y = median), color = 'red') +
-  xlab('Days') + ylab(case_choice) +
-  #geom_vline(xintercept = epimax_day, color = 'purple') +
-  #coord_cartesian(xlim = c(0, 82)) +
-  theme(axis.text = element_text(size = 10),
-        axis.title = element_text(size = 14))
-p1
-
-incidence_df$Day <- all_data$cases$day
-incidence_df <- incidence_df %>% left_join(all_data$rt, by = join_by(Day))
-incidence_df <- incidence_df %>%
-  left_join(y1[, c('date', 'median', 'lower_90', 'upper_90')],
-            by = join_by(date))
-head(incidence_df)
-
-epi2 <- incidence_df
-
-p2 <- as_tibble(incidence_df) %>%
-  ggplot() +
-  geom_hline(yintercept = 1, linetype = '11') +
+  geom_hline(yintercept = 1, linetype = "11") +
   # *******
-  # this is the true r(t)
-  geom_line(aes(x = Day, y = Rt_calc)) +
+  # this is the true r(t), back-calculated
+  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
   # *******
-  geom_ribbon(aes(x = Day,
-                  ymin = lower_90,
-                  ymax = upper_90),
-              fill = 'red', alpha = 0.25) +
-  geom_line(aes(x = Day, y = median), color = 'red') +
-  coord_cartesian(ylim = c(0,5)) +
-  xlab('Days') + ylab('Rt') +
-  theme(axis.text = element_text(size = 10),
-        axis.title = element_text(size = 14))
-p2
-ep2 <- p2
+  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package),
+              alpha = 0.25) +
+  geom_line(aes(x = date, y = Rt_median, color = package)) +
+  coord_cartesian(ylim = c(0, 5)) +
+  xlab("Days") +
+  ylab("Rt") +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 14)
+  )
 
-library(patchwork)
-p1 + p2 + plot_layout(ncol = 1)
-
-###
-p2_corrected_daily_inf +
-  geom_ribbon(mapping = aes(x = Day,
-                  ymin = lower_90,
-                  ymax = upper_90),
-              fill = 'blue', alpha = 0.25,data = incidence_df) +
-  geom_line(aes(x = Day, y = median), color = 'blue', data = incidence_df)
+saveRDS(plot_data, "plot_data_EpiNow2.RDS")
