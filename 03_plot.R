@@ -2,6 +2,7 @@
 library(ggpubr)
 library(lemon)
 library(tidyverse)
+library(ggtext)
 
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
@@ -29,7 +30,8 @@ this_plot <- function(pd, title) {
       axis.text = element_text(size = 10),
       axis.title = element_text(size = 14),
       strip.background = element_blank(),
-      strip.text = element_text(face = 'bold')
+      strip.text = element_text(face = 'bold'),
+      plot.title = element_markdown()
     ) + ggtitle(title)
 }
 
@@ -39,7 +41,7 @@ plot_data <- rbind(
   readRDS("plot_data_EpiNow2_reports.RDS")
 )
 
-p1 <- this_plot(plot_data, "Instanteous R(t) of infections from reported case data")
+p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
 
 plot_data <- rbind(
   readRDS("plot_data_EpiEstim_infections.RDS"),
@@ -47,7 +49,7 @@ plot_data <- rbind(
   readRDS("plot_data_EpiNow2_infections.RDS")
 )
 
-p2 <- this_plot(plot_data, "Instanteous R(t) of infections from infections data")
+p2 <- this_plot(plot_data, "Instanteous R(t) of infections from **infections data**")
 
 library(patchwork)
 
