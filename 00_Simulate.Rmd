@@ -74,7 +74,8 @@ set.seed(123)
 
 We make several assumptions on this sheet:
 
-* We parameterize all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. Throughout, NB size is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean. Higher size means the distribution gets closer to Poisson). For more information see [Zeileis](https://edoc.unibas.ch/15400/).
+* We parameterize all distributions using a right-truncated Negative Binomial (NB) distribution. Throughout, NB size is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean. Higher size means the distribution gets closer to Poisson). For more information see [Zeileis](https://edoc.unibas.ch/15400/).
+* Offspring in each generation can be described using either a Poisson or NB distribution with a defined NB size parameter.
 * We assume that infectivity happens on the day of symptom onset. 
 * We assume that the incubation and transmission distributions are independent. 
 
@@ -83,7 +84,7 @@ We make several assumptions on this sheet:
 We would like to acknowledge the funding from EpiStorm (CDC NU38FT000013), as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], Christine Sangphet, BA^[Boston University], and Anne Cori, PhD^[Imperial College, London]
 
 ### Incubation time distribution
-Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB size = 1e-10. The blue line shows a Poisson distribution with $\lambda=\mu_{NB}$, which enables you to see the influence of varying the NB size parameter.
+Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB size = 1e-10. 
 
 ```{r inc_interval, echo=FALSE}
 INC_MIN = 1
@@ -118,10 +119,10 @@ renderPlot({
       geom_col(fill = 'white', color = 'black',
            width = 0.4) +
   geom_density(stat = 'identity', fill = '#FF6666', alpha = 0.2) +
-    geom_density(data = data.frame(x = rpois(5000, input$inc_i_mean)) %>%
-                   group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
-                 aes(x = x + INC_MIN, y= n),
-                 stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
+    # geom_density(data = data.frame(x = rpois(5000, input$inc_i_mean)) %>%
+    #                group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
+    #              aes(x = x + INC_MIN, y= n),
+    #              stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
     coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(inc_max()))) +
     scale_x_continuous(minor_breaks = 1:15) +
     xlab('Days') + ylab('P(x)') +
@@ -134,7 +135,7 @@ renderPlot({
 ```
 
 ### Transmission time distribution
-Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual. In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB size = 1e-10. The blue line shows a Poisson distribution with $\lambda=\mu_{NB}$, which enables you to see the influence of varying the NB size parameter.
+Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual. In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB size = 1e-10. 
 
 ```{r trans_interval, echo=FALSE}
 TRANS_MIN = 0
@@ -143,7 +144,7 @@ TRANS_MIN = 0
 inputPanel(
   # row 1
   sliderInput("trans_i_mean", label = "NB mean (days)", value = 1, min = 0, max = 15),
-  sliderInput("trans_i_size", label = "NB size", pre = '1e', value = 2, min = -10, max = 20),
+  sliderInput("trans_i_size", label = "NB size", pre = '1e', value = 2, min = -10, max = 10),
   sliderInput("maxtrans", label = "Max. transmission time (days)", value = 10,
               min = 5, max = 15, step = 1),
 )
@@ -167,10 +168,10 @@ renderPlot({
       geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
            width = 0.4) +
   geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
-        geom_density(data = data.frame(x = rpois(5000, input$trans_i_mean)) %>%
-                   group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
-                 aes(x = x + TRANS_MIN, y= n),
-                 stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
+        # geom_density(data = data.frame(x = rpois(5000, input$trans_i_mean)) %>%
+        #            group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
+        #          aes(x = x + TRANS_MIN, y= n),
+        #          stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
     coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(trans_max()))) +
     scale_x_continuous(minor_breaks = 1:15) +
     xlab('Days') + ylab('P(x)') +
@@ -416,15 +417,23 @@ Now, create your $R(t)$ curve so you can simulate the next generation(s) of case
 
 ```{r bsdeg, echo=FALSE}
 RTINF = 1
-inputPanel(
-  # sliderInput("r0", label = "R(t = 0):",
-  #             min = 0.2, max = 2, value = 1.6, step = 0.1),
-  sliderInput("n0", label = "Initial cases:",pre = '1e',
-              min = 1, max = 3, value = 3, step = 0.5),
-  sliderInput("ld", label = "Modeling window (days)", value = 60,
-              min = 30, max = 100, step = 5),
-  sliderInput('BSDEG', 'Spline Degree:', value = 1, min = 1, max = 4, step = 1)
-)
+  div(
+    style = "background-color: #f9f9f9; padding: 20px; border: 0.5px solid #ccc; 
+             border-radius: 2px; 
+             margin-bottom: 20px;",
+  splitLayout(cellWidths = c('18%', '22%', '18%', '18%', '24%'),
+  sliderInput("n0", label = "Initial cases:", width = '90%',
+              pre = '1e',min = 1, max = 3, value = 3, step = 1),
+  sliderInput("ld", label = "Model time (days):", value = 60,min = 20, 
+              max = 100, step = 20, width = '90%'),
+  sliderInput('BSDEG', 'Spline Degree:', value = 1, width = '90%',
+              min = 1, max = 4, step = 1),
+  radioButtons('GenType', 'Offspring dist:', choices = c('Poisson', 'NegBinom')),
+  conditionalPanel(condition = "input.GenType == 'NegBinom'", 
+                     sliderInput("NB_off", label = "NB size", pre = '1e', width = '90%',
+              value = 10, min = 1, max = 10))
+  ) #split
+) #div
 
 ```
 
@@ -568,9 +577,9 @@ observe({
 ```
 </div>
 
-Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The Poisson offspring of each generation are based on the $R(t)$ value given by the **GENERATION INTERVAL** of the previous generation. This means that if you are infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will decrease to reflect this change. 
+Now, create the all subsequent generations within the modeling window (generation # is indicated by fill color in the graph below, with lighter being later generations. The first generation is outlined in red). The offspring of each generation are based on the $R(t)$ value given by the **GENERATION INTERVAL** of the previous generation. This means that if you are infected, but then there is a lockdown, the $R(t)$ value that determines how many people you infect will decrease to reflect this change. 
 
-**NOTE: ** The generation to generation offspring are modeled as a Poisson distribution, with an expected value of $\mu(t+1)=R(t) * g(t)$, where $g(t)$ reflects the distribution of the previous generation's generation interval. So for example, a generation of 90 people will have a generation interval distribution that spreads out across several days, lets say 50 on day t+1, and 40 on day t+2. So the expected value of the poisson offspring on day t+1 is $50 * R(t+1)$, and on day t+2 its $40 * R(t+2)$. Then the next generation of individuals on days t+1 and t+2 are set. This may be updated to a Negative Binomial distribution in future iterations.
+**NOTE: ** The generation to generation offspring are modeled as either a Poisson distribution or an NB distribution, with an expected value of $\mu(t+1)=R(t) * g(t)$ (and a size determined by the user), where $g(t)$ reflects the distribution of the previous generation's generation interval. So for example, a generation of 90 people will have a generation interval distribution that spreads out across several days, lets say 50 on day t+1, and 40 on day t+2. So the expected value of the offspring on day t+1 is $50 * R(t+1)$, and on day t+2 its $40 * R(t+2)$. Then the next generation of individuals on days t+1 and t+2 are set. 
 
 ```{r echo=FALSE}
 dat_all <- reactive({
@@ -652,7 +661,13 @@ dat_all <- reactive({
     ## simulate the next generation of infectees
     ## so on the date of symptom onset for current infectees
     # this is the number of people that will be infected
-    n1   <- sapply(mu, function(mx) rpois(1, mx))
+    if(input$GenType == 'Poisson') {
+      n1   <- sapply(mu, function(mx) rpois(1, mx))
+    } else if(input$GenType == 'NegBinom') {
+      n1   <- sapply(mu, function(mx) rnbinom(1, mu = mx, size = input$NB_off))
+    } else {
+      stop()
+    }
     # print('next gen')
     # print(n1)
     # print(sum(n1))
@@ -823,7 +838,7 @@ Now, what is the "true" R(t) for infectivity that was calculated here? The R(t) 
 It is possible to calculate the realized $R(t)$ by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$) to solve for $R(t)$. The black line below replicates the $R(t)$ that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. The key to making this work was using the generation interval from the previous generation to define when the next generation's infection dates where, then using the $R(t)$ values for those infection dates to determine the next round of offspring. 
 
 
-**NOTE:** The beginning of the curve has some expected instability. This is because we are drawing randomly from a Poisson process that has no preceding values to anchor it. If there is any transmission distribution, these values become shifted, and thus the calculated $R(t)$ based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaneous. What this tells us is that when you have instantaneous transmission, all of the day 0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
+**NOTE:** The beginning of the curve has some expected instability. This is because we are drawing randomly from a Poisson (or NB) process that has no preceding values to anchor it. If there is any transmission distribution, these values become shifted, and thus the calculated $R(t)$ based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaneous. What this tells us is that when you have instantaneous transmission, all of the day 0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
 
 ```{r}
 get_Rt <- function(m, w) {
