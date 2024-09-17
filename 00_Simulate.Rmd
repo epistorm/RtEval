@@ -1,5 +1,5 @@
 ---
-title: "Collabathon: Simulating line-list data"
+title: "Collabathon: Simulating infectious disease data"
 author: Chad Milando, PhD*^[Boston University, School of Public Health, Department of Environmental Health, cmilando@bu.edu]; Laura White, PhD^[Boston University, School of Public Health, Department of Biostatistics]; 
 date: "2024-09-24"
 output: html_document
@@ -70,14 +70,20 @@ inputPanel(shiny::helpText("set.seed(123)"))
 set.seed(123)
 ```
 
-We parameterize all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. NB dispersion (also called 'size') is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean). For more information see [Zeileis](https://edoc.unibas.ch/15400/)
+##### Assumptions
+
+We make several assumptions on this sheet:
+
+* We parameterize all distributions (except offspring, which were Poisson for now) using a right-truncated Negative Binomial (NB) distribution. Throughout, NB size is a measure of over-dispersion (smaller size means more over-dispersion, which means variance != mean. Higher size means the distribution gets closer to Poisson). For more information see [Zeileis](https://edoc.unibas.ch/15400/).
+* We assume that infectivity happens on the day of symptom onset. 
+* We assume that the incubation and transmission distributions are independent. 
 
 #### Acknowledgements
 
 We would like to acknowledge the funding from EpiStorm (CDC NU38FT000013), as well as contributions of code and thoughts from Tenglong Li, PhD^[Boston University, School of Public Health, Department of Biostatistics], Zhenwei Zhou, PhD^[Boston University, School of Public Health, Department of Biostatistics], Christine Sangphet, BA^[Boston University], and Anne Cori, PhD^[Imperial College, London]
 
 ### Incubation time distribution
-Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB dispersion = 1e-10.
+Incubation time is defined as the time between **infection** and **symptom onset** for an individual. We used a minimum incubation time (1 day) and a maximum incubation time (user defined). Incubation of exactly 1 day can be achieved by setting NB size = 1e-10. The blue line shows a Poisson distribution with $\lambda=\mu_{NB}$, which enables you to see the influence of varying the NB size parameter.
 
 ```{r inc_interval, echo=FALSE}
 INC_MIN = 1
@@ -86,7 +92,7 @@ INC_MIN = 1
 inputPanel(
   # row 1
   sliderInput("inc_i_mean", label = "NB mean (days)", value = 2, min = 1, max = 15),
-  sliderInput("inc_i_size", label = "NB dispersion", pre = '1e', value = 2, min = -10, max = 10),
+  sliderInput("inc_i_size", label = "NB size", pre = '1e', value = 2, min = -10, max = 10),
   sliderInput("maxinc", label = "Max. incubation time (days)", value = 11,
               min = 5, max = 15, step = 1)
 )
@@ -112,6 +118,10 @@ renderPlot({
       geom_col(fill = 'white', color = 'black',
            width = 0.4) +
   geom_density(stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+    geom_density(data = data.frame(x = rpois(5000, input$inc_i_mean)) %>%
+                   group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
+                 aes(x = x + INC_MIN, y= n),
+                 stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
     coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(inc_max()))) +
     scale_x_continuous(minor_breaks = 1:15) +
     xlab('Days') + ylab('P(x)') +
@@ -124,7 +134,7 @@ renderPlot({
 ```
 
 ### Transmission time distribution
-Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual. In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB dispersion = 1e-10.
+Transmission time is defined as the time beteween between **symptom onset** in **infector** and **infection** in **infectee** for an individual. In this simulation we assume that the transmission time distribution is **independent** from the incubation time distribution. We parameterized using a right-truncated Negative Binomial (NB) distribution defined by a minimum transmission time (0 days) and a maximum transmission time (user defined). Transmission of exactly 0 days can be achieved by setting NB mean = 0, or NB size = 1e-10. The blue line shows a Poisson distribution with $\lambda=\mu_{NB}$, which enables you to see the influence of varying the NB size parameter.
 
 ```{r trans_interval, echo=FALSE}
 TRANS_MIN = 0
@@ -133,7 +143,7 @@ TRANS_MIN = 0
 inputPanel(
   # row 1
   sliderInput("trans_i_mean", label = "NB mean (days)", value = 1, min = 0, max = 15),
-  sliderInput("trans_i_size", label = "NB dispersion", pre = '1e', value = 2, min = -10, max = 20),
+  sliderInput("trans_i_size", label = "NB size", pre = '1e', value = 2, min = -10, max = 20),
   sliderInput("maxtrans", label = "Max. transmission time (days)", value = 10,
               min = 5, max = 15, step = 1),
 )
@@ -157,6 +167,10 @@ renderPlot({
       geom_col(aes(x = x, y = n), fill = 'white', color = 'black',
            width = 0.4) +
   geom_density(aes(x = x, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
+        geom_density(data = data.frame(x = rpois(5000, input$trans_i_mean)) %>%
+                   group_by(x) %>% tally() %>% mutate(n = n / sum(n)) ,
+                 aes(x = x + TRANS_MIN, y= n),
+                 stat = 'identity', fill = NA, color = 'blue', alpha = 0.2) +
     coord_cartesian(xlim = c(0, 15), ylim = c(0, as_vector(trans_max()))) +
     scale_x_continuous(minor_breaks = 1:15) +
     xlab('Days') + ylab('P(x)') +
@@ -263,7 +277,7 @@ Finally, we model a reporting delay distribution, the time between **sympotom on
 inputPanel(
   # row 1
   sliderInput("NB_m", label = "NB mean (days)", value = 1, min = 0., max = 20),
-  sliderInput("NB_r", label = "NB dispersion", pre = '1e', value = 2, min = -1, max = 20),
+  sliderInput("NB_r", label = "NB size", pre = '1e', value = 2, min = -1, max = 20),
   sliderInput("maxdelay", label = "Max. reporting delay (days)", value = 11,
               min = 10, max = 15, step = 1),
 )
@@ -299,24 +313,23 @@ renderPlot({
 ```
 ### R(t) simulation
 
-We first describe the daily infections, onsets, and reporting days of the first generation (i.e. the first round of infectees in the data -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state). Here we assumed that there are 1000 initial cases (infectors), and use the distributions defined above. Take a second here to look at the graph below and compare to your distributions for incubation and transmission (and reporting delay, if you included that) - do they make sense?
+We first describe the daily infections, onsets, and reporting days of the first generation (i.e. the first round of infectees in the data -- you could think about this like people that were exposed at a conference out of state, that then traveled home and are now reporting in their home state).The number of initial cases (infectors) is set below, and the distributions defined above. Take a second here to look at the graph below and compare to your distributions for incubation and transmission (and reporting delay, if you included that) - do they make sense?
 
 **NOTE:** We are modeling onset time as synonymous with infectivity, although this may not be true for many diseases. We also assume that the simulation **STARTS on DAY=0**. So the earliest infections will happen on Day 0, and the earliest onsets will happen on Day 1. 
 
 ```{r get_curves2, echo=FALSE}
-n0  = 1000
 
 plot_dat <- reactive({
   # ----------
   # one draw from poisson given by lambda = initial cases * initial reproductive number
   # this gives the first timestep of infectees from the initial cases
-  # n1 <- rpois(1, n0 * input$r0) 
+  # n1 <- rpois(1, 10^input$n0 * input$r0) 
   
   # so first is the date of infection, 
   # which is a draw from the transmission distribution
   # NOTE: WHY
   i1 = sample(0:input$maxtrans, 
-                        size = n0, 
+                        size = 10^input$n0, 
                         prob = dnbinom(0:input$maxtrans, 
                                        size = 1*10^input$trans_i_size, 
                                        mu = input$trans_i_mean), 
@@ -325,7 +338,7 @@ plot_dat <- reactive({
 
   # next is onset times, which is transmission + incubation
   o1 = sample(0:input$maxinc, 
-                          size = n0, 
+                          size = 10^input$n0, 
                           prob = dnbinom(0:input$maxinc, 
                                          size = 1*10^input$inc_i_size, 
                                          mu = input$inc_i_mean), 
@@ -334,7 +347,7 @@ plot_dat <- reactive({
 
   # Finally, reporting, which is transmission + incubation + reporting delay
   d1 = sample(0:input$maxdelay, 
-                          size = n0, 
+                          size = 10^input$n0, 
                           prob = dnbinom(0:input$maxdelay, 
                                          size = 1*10^input$NB_r, 
                                          mu = input$NB_m), 
@@ -349,7 +362,7 @@ plot_dat <- reactive({
   ## to the sum to scale up the counts
   gi1 <- data.frame(x1 = o1,
                x2 = sample(0:input$maxtrans, 
-                          size = n0, 
+                          size = 10^input$n0, 
                           prob = dnbinom(0:input$maxtrans, 
                                          size = 1*10^input$trans_i_size, 
                                          mu = input$trans_i_mean), 
@@ -398,16 +411,16 @@ renderPlot({
 }, height = 200)
 ```
 
-Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$. if $R(t) > 1$ for all $t$, the cases will expontentially increase, and the code will not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points. 
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$. $R(t > T)$ are set to 1. if $R(t) > 1$ for all $t$, the cases will exponentially increase, and the code may not complete for modeling windows greater than 30 days. You can change the code to have a different spline between points. 
 
 
 ```{r bsdeg, echo=FALSE}
-
+RTINF = 1
 inputPanel(
   # sliderInput("r0", label = "R(t = 0):",
   #             min = 0.2, max = 2, value = 1.6, step = 0.1),
-  sliderInput("RTINF", label = "Final R(t):",
-              min = 0.2, max = 2, value = 1, step = 0.1),
+  sliderInput("n0", label = "Initial cases:",pre = '1e',
+              min = 1, max = 3, value = 3, step = 0.5),
   sliderInput("ld", label = "Modeling window (days)", value = 60,
               min = 30, max = 100, step = 5),
   sliderInput('BSDEG', 'Spline Degree:', value = 1, min = 1, max = 4, step = 1)
@@ -617,7 +630,7 @@ dat_all <- reactive({
     ## repeat RTINF until the end of the sequence,
     ## in this case, the largest onset date
     MAX_DT = 100
-    rt <- c(rt_y, rep(input$RTINF, times = max(MAX_DT))) 
+    rt <- c(rt_y, rep(RTINF, times = max(MAX_DT))) 
     stopifnot(length(rt[gi_date]) == length(gi_no))
     
     ## then, get a vector of poisson variaables for the 
@@ -749,7 +762,7 @@ aggDat <- reactive({
 allRt <- reactive({
   # print("***")
   rt_y = rt_grid()$y
-  rinf = input$RTINF
+  rinf = RTINF
 
   max_dt = max(dat_all()$i1)
 
@@ -782,14 +795,15 @@ renderPlot({
     group_by(name, gen_i_c, value) %>% tally() %>%
     mutate(is_gen_1 = gen_i_c == 1) %>%
     ggplot(.) +
-    geom_bar(aes(x = value, fill = gen_i_c, y = n, 
-                 color = is_gen_1, lwd = is_gen_1), 
-             position = 'stack', stat = 'identity', width = 0.8) + 
+    geom_bar(aes(x = value, fill = gen_i_c, y = n,
+                 color = is_gen_1, lwd = is_gen_1),
+             position = 'stack', stat = 'identity', width = 1) +
+    # geom_path(aes(x = value, y = n), stat = 'identity', fill = '#FF6666', alpha = 0.2) +
     facet_wrap(~name, nrow = 1) + 
     ylab('N') + xlab('Day') +
     scale_fill_continuous(name = 'Gen. #') +
     scale_color_manual(name = "", values = c("transparent", "red")) +
-    scale_linewidth_manual(name = "", values = c(0.1, 1)) +
+    scale_linewidth_manual(name = "", values = c(0, 1)) +
     # scale_fill_brewer(name = 'Gen.#', type = 'seq', 
     #                   direction = -1, palette = 3) + 
     theme_gray() + 
@@ -879,9 +893,9 @@ renderPlot({
       y = 0.82,
       lab = 'Transmission P(x)'
     )
-
+    shift_fct = input$ld / 30
     second_axis_ticks <- data.frame(
-      xmin = c(sx-0.1, sx-.1, sx-.1, sx-.1, sx-.1),
+      xmin = rep(sx-0.1 * shift_fct, 5),
       xmax = c(sx, sx, sx, sx, sx),
       ymin = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
       ymax = my_rescale(c(0, 0.25, 0.5, 0.75, 1), 0.0, 0.73),
@@ -911,7 +925,7 @@ renderPlot({
     geom_segment(data = second_axis_ticks, aes(x = xmin, xend = xmax, 
                                                y = ymin, yend = ymax), 
                  linewidth = 0.2) +
-    geom_text(data = second_axis_ticks, aes(x = xmin - 0.5,  
+    geom_text(data = second_axis_ticks, aes(x = xmin - (0.4 + 0.3*shift_fct),  
                                             y = ymin, label = lab), size = 3,
               family = 'Helvetica') +
     
