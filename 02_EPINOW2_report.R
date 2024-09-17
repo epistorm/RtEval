@@ -5,10 +5,9 @@ url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
 
 # ********************************
-# Define input variables (replacing Shiny inputs)
 case_choice <- 'daily_reports'
 # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
-
+# ********************************
 
 rr <- which(colnames(all_data$cases) == case_choice)
 
@@ -34,8 +33,7 @@ delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 ## *****
 
-# Actuall takes several minutes
-## HMM THIS ALSO DOESNT LIKE AN INCOMPLETE RECORD
+#
 res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
