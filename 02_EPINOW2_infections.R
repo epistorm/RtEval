@@ -36,6 +36,7 @@ res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
   delays = delay_opts(dist = Fixed(0)),
+  backcalc = backcalc_opts(prior = 'infections'),
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
@@ -75,4 +76,4 @@ as_tibble(plot_data) %>%
     axis.title = element_text(size = 14)
   )
 
-saveRDS(plot_data, "plot_data_EpiNow2.RDS")
+saveRDS(plot_data, "plot_data_EpiNow2_infections.RDS")

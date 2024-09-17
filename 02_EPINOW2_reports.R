@@ -52,9 +52,16 @@ dim(y_extract)
 # head(y_date)
 # View(res_epinow$samples)
 
+##
+# * including this since i havent figured out how to do it above
+INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
+                                       w = all_data$incubation$Px))
+##
+
+
 plot_data <- data.frame(
   package = "EpiNow2",
-  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
   Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
   Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
   Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
@@ -78,4 +85,4 @@ as_tibble(plot_data) %>%
     axis.title = element_text(size = 14)
   )
 
-saveRDS(plot_data, "plot_data_EpiNow2.RDS")
+saveRDS(plot_data, "plot_data_EpiNow2_report.RDS")
