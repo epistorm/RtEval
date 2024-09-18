@@ -930,7 +930,7 @@ renderPlot({
               fill = '#FF6666', alpha = 0.5) +
     coord_cartesian(ylim = c(0, 2)) +
         geom_text(data = plotlab, aes(x = x, y = y, label = lab), size = 3,
-            family = 'Helvetica') +
+            family = 'Arial') +
     ##
     geom_segment(data = second_axis, aes(x = xmin, xend = xmax, 
                                    y = ymin, yend = ymax), linewidth = 0.4) +
@@ -939,7 +939,7 @@ renderPlot({
                  linewidth = 0.2) +
     geom_text(data = second_axis_ticks, aes(x = xmin - (0.4 + 0.3*shift_fct),  
                                             y = ymin, label = lab), size = 3,
-              family = 'Helvetica') +
+              family = 'Arial') +
     
     theme(
       axis.text = element_text(size = 10),

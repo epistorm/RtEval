@@ -1,6 +1,6 @@
 # README
 
-Welcome to the Collabathon 
+See the live link [here](https://mobslab.shinyapps.io/simulate_infection_data/)
 
 1. `00_Simulate.Rmd` : The first step is to simulated case data
 2. EpiEstim
