@@ -24,7 +24,7 @@ this_plot <- function(pd, title) {
     geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt,
               linewidth= 0.5,
               linetype = '11') +
-    facet_rep_wrap(~package, repeat.tick.labels = 'y') +
+    facet_rep_wrap(~package, repeat.tick.labels = 'y', nrow = 3) +
     # *******
     theme(
       axis.text = element_text(size = 10),
@@ -35,22 +35,24 @@ this_plot <- function(pd, title) {
     ) + ggtitle(title)
 }
 
-plot_data <- rbind(
-  readRDS("plot_data_EpiEstim_reports.RDS"),
-  readRDS("plot_data_EpiLPS_reports.RDS"),
-  readRDS("plot_data_EpiNow2_reports.RDS")
-)
-
-p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
+# plot_data <- rbind(
+#   readRDS("plot_data_EpiEstim_reports.RDS"),
+#   readRDS("plot_data_EpiLPS_reports.RDS"),
+#   readRDS("plot_data_EpiNow2_reports.RDS")
+# )
+#
+# p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
 
 plot_data <- rbind(
   readRDS("plot_data_EpiEstim_infections.RDS"),
   readRDS("plot_data_EpiLPS_infections.RDS"),
-  readRDS("plot_data_EpiNow2_infections.RDS")
+  readRDS("plot_data_EpiNow2_infections.RDS"),
+  readRDS("plot_data_rtestim_infections.RDS"),
+  readRDS("plot_data_R0_infections.RDS")
 )
 
 p2 <- this_plot(plot_data, "Instanteous R(t) of infections from **infections data**")
-
+p2
 library(patchwork)
 
 p2 + p1 + plot_layout(ncol = 1)
