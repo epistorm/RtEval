@@ -35,31 +35,33 @@ this_plot <- function(pd, title) {
     ) + ggtitle(title)
 }
 
-# plot_data <- rbind(
-#   readRDS("plot_data_EpiEstim_reports.RDS"),
-#   readRDS("plot_data_EpiLPS_reports.RDS"),
-#   readRDS("plot_data_EpiNow2_reports.RDS")
-# )
-#
-# p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
+plot_data <- rbind(
+  readRDS("plot_data_EpiEstim_reports.RDS"),
+  readRDS("plot_data_EpiLPS_reports.RDS"),
+  readRDS("plot_data_EpiNow2_reports.RDS"),
+  readRDS("plot_data_rtestim_reports.RDS")
+)
+
+p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
+p1
 
 plot_data <- rbind(
   readRDS("plot_data_EpiEstim_infections.RDS"),
   readRDS("plot_data_EpiLPS_infections.RDS"),
   readRDS("plot_data_EpiNow2_infections.RDS"),
-  readRDS("plot_data_rtestim_infections.RDS"),
-  readRDS("plot_data_R0_infections.RDS")
+  #readRDS("plot_data_R0_infections.RDS"),
+  readRDS("plot_data_rtestim_infections.RDS")
 )
 
 p2 <- this_plot(plot_data, "Instanteous R(t) of infections from **infections data**")
 p2
 library(patchwork)
 
-p2 + p1 + plot_layout(ncol = 1)
+p2 + p1
 
 dev.size()
 ggsave(
-  'comparison_plot_v1.png', width = 11/1.25, height = 3.9/1.25 * 2, dpi = 600
+  'comparison_plot_v1.png', width = 9.291667*2/1.25, height = 8.402778/1.25, dpi = 600
 )
 
 
