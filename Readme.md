@@ -6,9 +6,11 @@
 
 `02_<package>_reports.R` compares each package to reporting data
 
-`03_plot.R` plots
+`03_plot.R` plots data in `plot_data_<package>_infections.RData` objects
 
 `04_eval.R` starter evaluation code
+
+the `in_progress` folder contains files in progress for `R0`, `EpiFilter`, and `EpiNowcast`
 
 
 # SETUP
