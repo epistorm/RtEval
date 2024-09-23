@@ -31,7 +31,9 @@ library(tidyverse)
 options(shiny.plot.res=96)
 ```
 
-This document walks through the steps of simulating estimates of the instantaneous reproduction number, $R(t)$, which can be helpful for surveillance and intervention planning of infectious diseases.
+This document walks through the steps of simulating estimates of the instantaneous reproduction number, $R(t)$, which can be helpful for surveillance and intervention planning of infectious diseases. 
+
+Throughout, we define $R(t)$ as the instantaneous reproduction number defined in [Gostic et. al. (2020)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008409), "The **instantaneous reproductive number** measures transmission at a specific point in time, [and] is more appropriate for analyses estimating the reproductive number of the infected population on specific dates, especially when aiming to study how interventions or other extrinsic factors have affected transmission at a given point in time."
 
 To do this, we'll simulate **line-list data**, which means there is a single row for each case that has dates for: infection, symptom onset, and when the case was reported to public health agencies.
 
