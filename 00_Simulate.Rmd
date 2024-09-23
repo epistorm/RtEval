@@ -411,7 +411,7 @@ renderPlot({
 }, height = 200)
 ```
 
-Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$, where $T$ is the simulation end date. $R(t > T)$ are set to 1. If $R(t) > 1$ for all $t$, the cases will exponentially increase, and the code may not complete for modeling windows greater than 30 days (a population limit of 10,000 is set to limit comupation time). You can change the code to have a different spline degree between knots. 
+Now, create your $R(t)$ curve so you can simulate the next generation(s) of cases (**starting at $t=1$**). Pre-defining the shape of $R(t)$ allows you to simulate infectious disease dynamics, interventions, etc. The dotted line at $R(t)=1$ shows the span of $R(t)$, from $t=[1, T]$, where $T$ is the simulation end date. $R(t > T)$ are set to 1. If $R(t) > 1$ for all $t$, the cases will exponentially increase, and the code may not complete for modeling windows greater than 30 days (a population limit of 10,000 is set to limit computation time). You can change the code to have a different spline degree between knots. 
 
 
 ```{r bsdeg, echo=FALSE}
