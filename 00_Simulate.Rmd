@@ -834,8 +834,7 @@ renderPlot({
 
 Now, what is the "true" R(t) for infectivity that was calculated here? The R(t) value above is the expected value, but we'd have to predict many scenarios in order estimate that without bias. Instead, we want to calculate what the $R(t)$ was in this specific realization of the expected value.
 
-It is possible to calculate the realized $R(t)$ by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$) to solve for $R(t)$. The black line below replicates the $R(t)$ that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. The key to making this work was using the generation interval from the previous generation to define when the next generation's infection dates where, then using the $R(t)$ values for those infection dates to determine the next round of offspring. 
-
+It is possible to calculate the realized $R(t)$ by inverting the renewal equation (i.e., $m(t) = \Sigma_{\tau < t} ~ R(t) ~ \omega(\tau) ~ m(t-\tau)$, where $m$ is the vector of cases and $\omega$ is the serial interval) to solve for $R(t)$. The black line below replicates the $R(t)$ that is used as the expected value to create the data and the red line is are the draws from the Poisson and NB processes that are described above. Each infector has an assigned generation interval that is used to define when the next generation of cases arise, and the $R(t)$ values for those infection dates  determine the next size of the next round of offspring. 
 
 **NOTE:** The beginning of the curve has some expected instability. This is because we are drawing randomly from a Poisson (or NB) process that has no preceding values to anchor it. If there is any transmission distribution, these values become shifted, and thus the calculated $R(t)$ based on the generation interval is much higher than it should be. You can see the impact of this effect by setting the transmission distribution to instantaneous. What this tells us is that when you have instantaneous transmission, all of the day 0 cases immediately have an impact as specified by the expected value of R(t) on that day. 
 
@@ -952,7 +951,7 @@ renderPlot({
 
 ```
 
-In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to defined the expected value. This will depend on the extent to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
+In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to define the expected value. This will depend on the extent to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
 
 ### Download data
 
