@@ -13,6 +13,20 @@
 the `in_progress` folder contains files in progress for `R0`, `EpiFilter`, and `EpiNowcast`
 
 
+# Links:
+
+*
+
+* [Folder](https://drive.google.com/drive/u/1/folders/1_lisRVP_FA5-gtz8zENxp6w6YDEKtXCm)
+* [Developer/Implementor](https://docs.google.com/presentation/d/1ByTkzhI2t_2KcS-55ySd3TeVHUMyiln42DxMmJ0KAbg/edit#slide=id.g3047e1edbf3_0_0)
+* [User/Evaluator](https://docs.google.com/presentation/d/1yjTKHkPsqzm8Gkqo-h_gAlxmGWh1EALgbcxQD4Bdsps/edit#slide=id.p)
+* [Decision Maker](https://docs.google.com/presentation/d/1tCqI534oVKZItKZAoXjhsge81GmVOZx51pd5JKZ8oxI/edit#slide=id.p)
+* [Workshop slides](https://docs.google.com/presentation/d/1mMpiTd7DUJr-_YpjISa9u-2vcSEz7xP9/edit#slide=id.p1)
+
+And here is the link to join the slack workspace [link](https://join.slack.com/t/epicollabathon2024/shared_invite/zt-2r1oytrvr-omdMDJVzWOnW1faACxLeDQ)
+
+And here is the link to synthetic GLEAM data from Jessica Davis, Ph.D [link](https://github.com/epistorm/rt-collabathon-2024)
+
 # SETUP
 
 First make sure you have the correct R installed
@@ -28,12 +42,12 @@ required_version <- "4.0.0"
 
 Then you need these packages
 ```
-install.packages( "rmarkdown", "shiny" ,    
+install.packages( c("rmarkdown", "shiny" ,    
 "knitr",     "plotly",    "purrr" ,
 "splines" ,  "tidyverse", "readr",    
  "EpiLPS",  "EpiNow2",
  "lubridate", "rstan"  ,   "cmdstanr" , "R0" ,       "remotes" ,   
- "ggpubr" ,   "ggtext" ,   "lemon" ,    "patchwork")
+ "ggpubr" ,   "ggtext" ,   "lemon" ,    "patchwork"))
  
 remotes::install_github("dajmcdon/rtestim")
 
