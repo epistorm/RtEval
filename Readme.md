@@ -21,6 +21,8 @@ the `in_progress` folder contains files in progress for `R0`, `EpiFilter`, and `
 * [Decision Maker](https://docs.google.com/presentation/d/1tCqI534oVKZItKZAoXjhsge81GmVOZx51pd5JKZ8oxI/edit#slide=id.p)
 * [Workshop slides](https://docs.google.com/presentation/d/1mMpiTd7DUJr-_YpjISa9u-2vcSEz7xP9/edit#slide=id.p1)
 
+And here is the link to join the slack workspace [link](https://join.slack.com/t/epicollabathon2024/shared_invite/zt-2r1oytrvr-omdMDJVzWOnW1faACxLeDQ)
+
 # SETUP
 
 First make sure you have the correct R installed
