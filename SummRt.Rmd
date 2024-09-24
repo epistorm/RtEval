@@ -34,11 +34,30 @@ R packages. All outputs will be in a standardized format that we can use to
 evaluate the R(t) estimation (either from directly comparing to the 
 true simulated R(t) or via comparing to an evaluation dataset of held out
 retrospective observations).
-```{r}
+```{r fit-Rt-with-each-package}
 
-# BAD practice but will source a file
+# BAD practice but will source a file. This will generate a set of standardized outputs
 source("02_EPINOW2_infections.R")
+
+```
+```{r plot-output}
+#source file, later will call function
+source("03_plot.R")
+plot_epinow2 <- this_plot(pd = plot_data, 
+                          title = "title")
+```
+## Score the output of the R(t) model
+This will either be compared to ground truth simulated data or
+observations 
+```{r score-output}
 ```
 
+## Compare scores from each package
+Visual comparison of scores for each package
+```{r compare-scores-across-packages}
+```
 
-
+## Discussion/Interpretation
+Which packages perform best on this dataset in what regimes? 
+E.g. EpiEstim most accurately captures perturbation,
+EpiNow2 performs best at nowcasting/forecasting observations
