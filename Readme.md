@@ -36,12 +36,12 @@ required_version <- "4.0.0"
 
 Then you need these packages
 ```
-install.packages( "rmarkdown", "shiny" ,    
+install.packages( c("rmarkdown", "shiny" ,    
 "knitr",     "plotly",    "purrr" ,
 "splines" ,  "tidyverse", "readr",    
  "EpiLPS",  "EpiNow2",
  "lubridate", "rstan"  ,   "cmdstanr" , "R0" ,       "remotes" ,   
- "ggpubr" ,   "ggtext" ,   "lemon" ,    "patchwork")
+ "ggpubr" ,   "ggtext" ,   "lemon" ,    "patchwork"))
  
 remotes::install_github("dajmcdon/rtestim")
 
