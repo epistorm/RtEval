@@ -960,7 +960,6 @@ In theory, all R(t) packages should predict the red line (a single realization o
 Adding functionality to add vintages
 
 
-Lets say you stop at certain days
 ```{r, echo = FALSE}
 
 inputPanel(
@@ -1089,6 +1088,94 @@ renderPlot({
 })
 
 ```
+
+
+### Adding dropout
+
+Adding a function to randomly drop out days, from Z.S.
+
+```{r, echo=FALSE}
+#' Corrupt an epidemic timeseries by dropping out points
+#'
+#' @param cases An integer vector of cases
+#' @param p_dropout A double between 0 and 1 of the number of elements to remove
+#' @param seed The random seed
+#' @return An integer vector of cases with `p_dropout` cases removed`
+#'
+#' @export
+apply_dropout <- function(cases, p_dropout, seed) {
+  if (p_dropout < 0 || p_dropout > 1) {
+    stop("arg `p_dropout` must be between 0 and 1")
+  }
+
+  withr::with_seed(seed, {
+    # Choose indices to set to 0
+    N <- length(cases)
+    
+    # Not sure this works as intended?
+    # dropout <- rnbinom(N, size = 1, prob = p_dropout)
+    
+    # simple but maybe works
+    dropout <- sample(1:N,size = round(N * p_dropout))
+
+    # Apply indices
+    cases[dropout] = 0
+   })
+
+  return(cases)
+}
+
+inputPanel(
+  sliderInput('drop_prob', label = 'Dropout probability', 
+              min = 0, max = 1, value = 0.0),
+  numericInput('drop_seed', label = 'Dropout seed', 
+              min = 1, max = 1000, step = 1, value = 123)
+)
+
+renderPlot({
+    
+    if(is.null(input$vintage_limit)) return()
+  
+    # get data first
+    data_x <- as_tibble(dat_all()) %>%
+      select(-gi1) %>% ## remove g1
+      rename("Daily Infections" = i1, 
+             "Daily Onsets" = o1, 
+             "Daily Reports" = d1) %>%
+      pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                            "Daily Reports")) %>%
+      group_by(name, value) %>% tally() %>%
+      filter(name == 'Daily Reports')
+
+    # apply dropout
+    data_x_dropout <- data_x
+
+    data_x_dropout$n <- apply_dropout(data_x_dropout$n, 
+                                      input$drop_prob,
+                                      input$drop_seed)
+    
+    # plot
+    data_x %>% 
+      ggplot(.) +
+      geom_path(aes(x = value, y = n), color = 'grey') +
+      geom_point(data = data_x_dropout,
+                mapping = aes(x = value, y = n), color = 'red', size = 2) +
+      ylab('N') + xlab('Day') +
+      scale_fill_continuous(name = 'Gen. #') +
+      scale_color_manual(name = "", values = c("transparent", "red")) +
+      scale_linewidth_manual(name = "", values = c(0, 1)) +
+      theme_gray() + 
+      coord_cartesian(xlim = c(0, input$ld)) +
+      theme(legend.position = 'none',
+                  axis.text = element_text(size = 10),
+            axis.title = element_text(size = 14),
+            strip.text = element_text(size = 14))
+  
+}, height = 200, width = 250)
+
+
+```
+
 
 ### Download data
 
