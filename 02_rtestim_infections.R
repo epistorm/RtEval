@@ -44,4 +44,4 @@ as_tibble(plot_rtestim) %>%
     axis.title = element_text(size = 14)
   )
 
-saveRDS(plot_rtestim, file = 'plot_data_rtestim_infections.RDS')
+saveRDS(plot_rtestim, file = 'plot_objects/plot_data_rtestim_infections.RDS')

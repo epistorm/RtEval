@@ -36,21 +36,21 @@ this_plot <- function(pd, title) {
 }
 
 plot_data <- rbind(
-  readRDS("plot_data_EpiEstim_reports.RDS"),
-  readRDS("plot_data_EpiLPS_reports.RDS"),
-  readRDS("plot_data_EpiNow2_reports.RDS"),
-  readRDS("plot_data_rtestim_reports.RDS")
+  readRDS("plot_objects/plot_data_EpiEstim_reports.RDS"),
+  readRDS("plot_objects/plot_data_EpiLPS_reports.RDS"),
+  readRDS("plot_objects/plot_data_EpiNow2_reports.RDS"),
+  readRDS("plot_objects/plot_data_rtestim_reports.RDS")
 )
 
 p1 <- this_plot(plot_data, "Instanteous R(t) of infections from **reported case data**")
 p1
 
 plot_data <- rbind(
-  readRDS("plot_data_EpiEstim_infections.RDS"),
-  readRDS("plot_data_EpiLPS_infections.RDS"),
-  readRDS("plot_data_EpiNow2_infections.RDS"),
-  #readRDS("plot_data_R0_infections.RDS"),
-  readRDS("plot_data_rtestim_infections.RDS")
+  readRDS("plot_objects/plot_data_EpiEstim_infections.RDS"),
+  readRDS("plot_objects/plot_data_EpiLPS_infections.RDS"),
+  readRDS("plot_objects/plot_data_EpiNow2_infections.RDS"),
+  #readRDS("plot_objects/plot_data_R0_infections.RDS"),
+  readRDS("plot_objects/plot_data_rtestim_infections.RDS")
 )
 
 p2 <- this_plot(plot_data, "Instanteous R(t) of infections from **infections data**")

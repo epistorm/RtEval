@@ -42,4 +42,4 @@ as_tibble(plot_data) %>%
     axis.title = element_text(size = 14)
   )
 
-saveRDS(plot_data, "plot_data_EpiLPS_infections.RDS")
+saveRDS(plot_data, "plot_objects/plot_data_EpiLPS_infections.RDS")

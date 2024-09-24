@@ -7,18 +7,18 @@ all_data <- readRDS("all_data.RDS")
 true_rt <- all_data$rt
 
 plot_data_infections <- rbind(
-  readRDS("plot_data_EpiEstim_infections.RDS"),
-  readRDS("plot_data_EpiLPS_infections.RDS"),
-  readRDS("plot_data_EpiNow2_infections.RDS"),
-  readRDS("plot_data_R0_infections.RDS"),
-  readRDS("plot_data_rtestim_infections.RDS")
+  readRDS("plot_objects/plot_data_EpiEstim_infections.RDS"),
+  readRDS("plot_objects/plot_data_EpiLPS_infections.RDS"),
+  readRDS("plot_objects/plot_data_EpiNow2_infections.RDS"),
+  readRDS("plot_objects/plot_data_R0_infections.RDS"),
+  readRDS("plot_objects/plot_data_rtestim_infections.RDS")
 )
 
 plot_data_reports <- rbind(
-  readRDS("plot_data_EpiEstim_reports.RDS"),
-  readRDS("plot_data_EpiLPS_reports.RDS"),
-  readRDS("plot_data_EpiNow2_reports.RDS"),
-  readRDS("plot_data_rtestim_reports.RDS")
+  readRDS("plot_objects/plot_data_EpiEstim_reports.RDS"),
+  readRDS("plot_objects/plot_data_EpiLPS_reports.RDS"),
+  readRDS("plot_objects/plot_data_EpiNow2_reports.RDS"),
+  readRDS("plot_objects/plot_data_rtestim_reports.RDS")
 )
 
 plot_data_infections |>
