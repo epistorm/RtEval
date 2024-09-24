@@ -416,6 +416,7 @@ Now, create your $R(t)$ curve so you can simulate the next generation(s) of case
 
 ```{r bsdeg, echo=FALSE}
 RTINF = 1
+
   div(
     style = "background-color: #f9f9f9; padding: 20px; border: 0.5px solid #ccc; 
              border-radius: 2px; 
@@ -772,6 +773,7 @@ aggDat <- reactive({
   
 })
 
+
 # get all Rt values
 allRt <- reactive({
   # print("***")
@@ -952,6 +954,141 @@ renderPlot({
 ```
 
 In theory, all R(t) packages should predict the red line (a single realization of the expected value), as the black line is not easily recoverable without multiple simulations to define the expected value. This will depend on the extent to which the packages take into account onset and reporting delays (if these are included). So if you are using a package that doesn't take into account reporting delays, use a simulation with no reporting delay.
+
+### Adding vintages
+
+Adding functionality to add vintages
+
+
+Lets say you stop at certain days
+```{r, echo = FALSE}
+
+inputPanel(
+
+  renderUI({
+      sliderInput('vintage_limit', 'Vintage day:', min = 10, max = input$ld, step = 1,
+              value = 15)
+    
+  }),
+  
+  renderUI({
+      sliderInput('vintage_every', 'Vintage every:', min = 7, 
+                  max = min(20, input$ld), step = 1,
+              value = 7)
+  })
+  
+)
+
+get_vintage_data <- function(data_x, vintage_limit) {
+  
+    data_x_true <- data_x %>% filter(value <= vintage_limit)
+    data_x_vintage <- data_x %>% filter(value <= vintage_limit)
+  
+      # first, remove anything after vintage day
+    data_x_true <- data_x %>% filter(value <= vintage_limit)
+    data_x_vintage <- data_x %>% filter(value <= vintage_limit)
+    
+    # now, just for the reports
+    max_d = max(data_x_vintage$value)
+    report_x <- as_tibble(reporting_dist())%>%rename(Day = x,Px = n)
+    report_x$rev_Px = rev(report_x$Px)
+    report_x$value = max_d - report_x$Day
+    report_x$Day <- NULL
+    report_x$Px <- NULL
+    data_x_vintage <- data_x_vintage %>% full_join(report_x)
+    data_x_vintage$rev_Px[is.na(data_x_vintage$rev_Px)] <- 1
+    # so the simplest version is just to take the fraction, so lets start with that
+    data_x_vintage$n_vintage = data_x_vintage$n * data_x_vintage$rev_Px
+    data_x_vintage$vintage_limit = vintage_limit
+    # i suppose you could sample as well, but this probably does it well enough
+    return(data_x_vintage)
+}
+
+renderPlot({
+    
+    if(is.null(input$vintage_limit)) return()
+  
+    # get data first
+    data_x <- as_tibble(dat_all()) %>%
+      select(-gi1) %>% ## remove g1
+      rename("Daily Infections" = i1, 
+             "Daily Onsets" = o1, 
+             "Daily Reports" = d1) %>%
+      pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                            "Daily Reports")) %>%
+      group_by(name, value) %>% tally() %>%
+      filter(name == 'Daily Reports')
+
+    # first, remove anything after vintage day
+    data_x_vintage <- get_vintage_data(data_x, vintage_limit = input$vintage_limit)
+    
+    # plot
+    data_x %>% 
+      ggplot(.) +
+      geom_path(aes(x = value, y = n), color = 'grey') +
+      geom_path(data = data_x_vintage,
+                mapping = aes(x = value, y = n_vintage), color = 'red', size = 2) +
+      facet_wrap(~vintage_limit, nrow = 1) + 
+      ylab('N') + xlab('Day') +
+      scale_fill_continuous(name = 'Gen. #') +
+      scale_color_manual(name = "", values = c("transparent", "red")) +
+      scale_linewidth_manual(name = "", values = c(0, 1)) +
+      geom_vline(xintercept = input$vintage_limit, color = 'purple', 
+                 linetype = '22')+
+      theme_gray() + 
+      coord_cartesian(xlim = c(0, input$ld)) +
+      theme(legend.position = 'none',
+                  axis.text = element_text(size = 10),
+            axis.title = element_text(size = 14),
+            strip.text = element_text(size = 14))
+  
+}, height = 200, width = 250)
+
+renderPlot({
+    
+    if(is.null(input$vintage_limit)) return()
+  
+    # get data first
+    data_x <- as_tibble(dat_all()) %>%
+      select(-gi1) %>% ## remove g1
+      rename("Daily Infections" = i1, 
+             "Daily Onsets" = o1, 
+             "Daily Reports" = d1) %>%
+      pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                            "Daily Reports")) %>%
+      group_by(name, value) %>% tally() %>%
+      filter(name == 'Daily Reports')
+
+    # first, remove anything after vintage day
+    every_x_days = seq(from = input$vintage_every, 
+                       to = input$ld, by = input$vintage_every)
+    data_x_vintage_l <- lapply(
+      every_x_days, function(limit_i) {
+        get_vintage_data(data_x, vintage_limit = limit_i) })
+    data_x_vintage = do.call(rbind, data_x_vintage_l)
+    
+    # plot
+    data_x_vintage %>% 
+      ggplot(.) +
+      geom_path(data = data_x, aes(x = value, y = n), color = 'grey') +
+      geom_path(mapping = aes(x = value, y = n_vintage), color = 'red', size = 2) +
+      facet_wrap(~vintage_limit, ncol = 3) + 
+      ylab('N') + xlab('Day') +
+      scale_fill_continuous(name = 'Gen. #') +
+      scale_color_manual(name = "", values = c("transparent", "red")) +
+      scale_linewidth_manual(name = "", values = c(0, 1)) +
+      geom_vline(aes(xintercept = vintage_limit), color = 'purple', 
+                 linetype = '22')+
+      theme_gray() + 
+      coord_cartesian(xlim = c(0, input$ld)) +
+      theme(legend.position = 'none',
+                  axis.text = element_text(size = 10),
+            axis.title = element_text(size = 14),
+            strip.text = element_text(size = 14))
+  
+})
+
+```
 
 ### Download data
 
