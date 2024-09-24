@@ -1,0 +1,44 @@
+---
+title: "SummRt"
+output: html_document
+date: "2024-09-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# start with individual packages, eventually can just load in SummRt
+library(EpiNow2)
+library(EpiEstim)
+library(rtestim)
+library(EpiLPS)
+#library(SummRt)
+library (tidyverse)
+```
+
+Load the dataset we will be fitting the R(t) estimation packages
+to in this vignette.
+
+This will eventually use package data that will be documented and
+will describe the specific epidemiological use case this
+data scenario is meant to represent. 
+```{r load-package-data}
+# We will eventually replace this with package data specific to the dataset. 
+# E.g. this might be our baseline infections, onset, report data
+url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
+all_data <- readRDS(url(url))
+```
+
+Fit each of the packages to the dataset. This will call `SummRt` package
+functions which will use S3 methods to wrap around the individual 
+R packages. All outputs will be in a standardized format that we can use to
+evaluate the R(t) estimation (either from directly comparing to the 
+true simulated R(t) or via comparing to an evaluation dataset of held out
+retrospective observations).
+```{r}
+
+# BAD practice but will source a file
+source("02_EPINOW2_infections.R")
+```
+
+
+
