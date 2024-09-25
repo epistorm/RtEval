@@ -9,16 +9,24 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r init, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
 # Introduction
 
 This vignette demonstrates how to use the `rtestim` package to estimate the reproduction number \(R_t\) for a disease based on observed case counts and other relevant delay distributions. We will load in pre-processed data, run the `estimate_rt` model, and visualize the results along with confidence bands.
 
-# Load Data
+## Load Data
 
 To start, we will load the required data. The data includes daily reported cases, serial interval, incubation period, and reporting delay distributions.
 
 ```{r setup, echo=TRUE, include=TRUE, eval=TRUE}
+
 library(rtestim)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
 
@@ -37,26 +45,29 @@ These will be used to estimate
 Next, we will estimate the reproduction number \(R_t\) using the `estimate_rt` function. 
 
 This function requires the observed daily case counts, the corresponding days, and the serial interval distribution as inputs.
-
+rr defines the range of rows from the dataset all_data$cases that will be included in the     analysis.
 ```{r runcode, echo=TRUE, include=TRUE, eval=TRUE}
 rr <- 2:nrow(all_data$cases)
 
-rtestim <- estimate_rt(
+rtestim <- cv_estimate_rt(
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
 ```
+
+## Extract the outomes using `summrt`
+
 The estimate_rt function uses the daily reports and the serial interval to produce time-varying estimates of the reproduction number \(R_t\)Calculating Confidence Bands
 
 We can compute approximate confidence bands around the \(R_t\)estimates using the confband function. These confidence bands help provide uncertainty intervals for the estimates.
 
-``` {Approximate confidence bands, echo=TRUE, include=TRUE, eval=TRUE}
-# Approximate confidence bands
-rtestim_cb <- confband(rtestim, lambda = rtestim$lambda[37])
+``` {r approximate confidence bands, echo=TRUE, include=TRUE, eval=TRUE}
+rtestim_cb <- confband(rtestim, lambda = "lambda.1se")
 ```
 
 The lambda value, derived from cross-validation, controls the smoothness of the estimated curve. The function outputs the fit and credible intervals (e.g., 2.5% and 97.5% quantiles), which are used to visualize the uncertainty.
+
 # Plotting output
 We first compute the shifts for incubation and reporting delay.
 ``` {r shift, echo=TRUE, include=TRUE, eval=TRUE}
@@ -66,8 +77,20 @@ INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
 REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
                                            w = all_data$reporting_delay$Px))
 ```
-Create dataframe needed 
-``` {r df, echo=TRUE, include=TRUE, eval=TRUE}
+
+### create rtestim output
+```{r df, echo=TRUE, include=TRUE, eval=TRUE}
+plot_rtestim <- data.frame(
+  package = "rtEstim",
+  date = all_data$cases$day[rr] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
+  Rt_median = rtestim_cb$fit,
+  Rt_lb = rtestim_cb$`2.5%`,
+  Rt_ub = rtestim_cb$`97.5%`
+)
+```
+
+### plot format
+``` {r plot, echo=TRUE, include=TRUE, eval=TRUE, fig.height = 4, fig.width = 7}
 as_tibble(plot_rtestim) %>%
   ggplot() +
   geom_hline(yintercept = 1, linetype = "11") +
@@ -84,7 +107,4 @@ as_tibble(plot_rtestim) %>%
     axis.text = element_text(size = 10),
     axis.title = element_text(size = 14)
   )
-
-saveRDS(plot_rtestim, file = 'plot_objects/plot_data_rtestim_reports.RDS')
 ```
-# Extract the outomes using `summrt`
