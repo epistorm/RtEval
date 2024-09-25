@@ -28,11 +28,15 @@ in R(t) but also nowcasting and forecasting expected observations and comparing 
 the true observations). 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+# install.packages('EpiEstim', repos = c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org'))
+# devtools::install_github("EpiForeSITE/summrt")
+
 library(EpiNow2)
 library(EpiEstim)
 library(rtestim)
 library(EpiLPS)
-#library(SummRt)
+require(summRt)
 library(ggplot2)
 library (tidyverse)
 library(epinowcast) # for add_pmf
@@ -48,6 +52,7 @@ will describe the specific epidemiological use case this
 data scenario is meant to represent. In this case, we are going to fit to data 
 on the number of reported cases, with a known discrete generation interval probability
 mass function (PMF) and reporting delay PMF that are also provided as data.
+
 ```{r load-rtdata}
 # We will eventually replace this with package data specific to the dataset. 
 # E.g. this might be our baseline infections, onset, report data
@@ -82,6 +87,7 @@ ggplot(all_data$cases) +
 
 Fit each of the packages to the dataset. See the package specific vignettes for more
 of a walk through for the decisions made for each package. 
+
 ```{r EpiNow2}
 
 #EpiNow2
@@ -103,31 +109,24 @@ res_epinow <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
-incidence_df$day = all_data$cases$day
-y_extract <- rstan::extract(res_epinow$estimates$fit)$R
-dim(y_extract)
-EpiNow2_plot_data <- data.frame(
-  package = "EpiNow2",
-  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
-  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
-  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
-  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
-)
+
 ```
 
 ```{r EpiEstim}
+# reporting data with dates indexed by integers starting at 0
 incidence_df <- data.frame(
   dates = all_data$cases$day,
   I = as.vector(all_data$cases$daily_reports)
 )
 colnames(incidence_df) <- c('dates', 'I')
-# Serial interval from data PMF
+
+# Serial interval from data PMF-has leading 0 and is vector of probabilities
 si_distr <- as.matrix(all_data$serial$Px)
 if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
 si_distr
 
 # Estimate R DAILY
-getR <- EpiEstim::estimate_R(
+res_epiestim <- EpiEstim::estimate_R(
   incid = incidence_df,
   method = "non_parametric_si",
   config = make_config(list(
@@ -138,33 +137,75 @@ getR <- EpiEstim::estimate_R(
   backimputation_window = 10
 )
 
-#
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
+```
 
-REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
-                                           w = all_data$reporting_delay$Px))
-
-# PLOT DATA
-plot_data <- data.frame( ## ANNE
-  package = "EpiEstim",
-  date = all_data$cases$day[getR$R$t_end] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
-  Rt_median = getR$R$`Median(R)`,
-  Rt_lb = getR$R$`Quantile.0.025(R)`,
-  Rt_ub = getR$R$`Quantile.0.975(R)`
+```{r rtestim}
+res_rtestim <- cv_estimate_rt(
+  observed_counts = all_data$cases$daily_reports[rr],
+  x = all_data$cases$day[rr],
+  delay_distn = all_data$serial$Px
 )
+
+```
+
+```{r EpiLPS}
+# discrete dist
+si_spec <- Idist(probs = all_data$serial$Px)
+
+# incidence
+incidence = all_data$cases$daily_reports
+which(is.na(incidence))
+incidence[1] <- 0
+
+#
+res_EpiLPS <- estimR(incidence = incidence, si = si_spec$pvec)
+
 ```
 
 # Call the `SummRt` package to standardize the outputs 
 ```{r get-standardized-outputs}
+# EpiNow2
+EpiNow2_summrt <- summarize_rtestimate(res_epinow)
+
+# EpiEstim
+EpiEstim_summrt <- summarize_rtestimate(res_epiestim)
+
+# rtestim
+Rtestim_summrt <- summarize_rtestimate(res_rtestim)
+
+# EpiLPS
+EpiLPS_summrt <- summarize_rtestimate(res_EpiLPS)
+
 ```
+
+# Plot the results from each method
 
 ```{r plot-outputs}
-#source file, later will call function
+#source file with this_plot(), later will call function
 
-plot_epinow2 <- this_plot(pd = plot_data, 
-                          title = "title")
+
+# EpiNow2
+plot_epinow <- this_plot(pd=plot_data_epinow,
+                         title="EpiNow2",
+                         rt_sim=all_data$rt)
+
+# EpiEstim
+plot_epiestim <- this_plot(pd = EpiEstim_summrt, 
+                          title = "EpiEstim",
+                         rt_sim=all_data$rt)
+
+# Rtestim
+plot_rtestim <- this_plot(pd = Rtestim_summrt, 
+                          title = "Rtestim",
+                         rt_sim=all_data$rt)
+
+# EpiLPS
+plot_EpiLPS <- this_plot(pd = EpiLPS_summrt, 
+                          title = "EpiLPS",
+                         rt_sim=all_data$rt)
+
 ```
+
 ## Score the output of the R(t) model
 This will either be compared to ground truth simulated data or
 observations 
