@@ -1,69 +1,42 @@
 ---
-title: "Template_individual_package_vignette"
-output: html_document
+title: "Rt Estimation with rtestim Package"
+author: "Peiwen Liu, ..."
 date: "2024-09-25"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Rt Estimation with rtestim}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
-# Load in the data
-```{r setup, include=FALSE}
+# Introduction
+
+This vignette demonstrates how to use the `rtestim` package to estimate the reproduction number \(R_t\) for a disease based on observed case counts and other relevant delay distributions. We will load in pre-processed data, run the `estimate_rt` model, and visualize the results along with confidence bands.
+
+# Load Data
+
+To start, we will load the required data. The data includes daily reported cases, serial interval, incubation period, and reporting delay distributions.
+
+```{r setup, echo=TRUE, include=TRUE, eval=TRUE}
 library(rtestim)
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
 
-#rt estimation
-rr <- 2:nrow(all_data$cases)
 ```
 
 
 # Run the model
-```{r setup, include=FALSE}
+```{r runcode, echo=TRUE, include=TRUE, eval=TRUE}
+rr <- 2:nrow(all_data$cases)
+
 rtestim <- estimate_rt(
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
 
-#approximate confidence bands
+# Approximate confidence bands
 rtestim_cb <- confband(rtestim, lambda = rtestim$lambda[37])
-#lambda: the selected lambda. May be a scalar value,
-# or in the case of cv_poisson_rt objects, "lambda.min" or "lambda.max"
-
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
-
-REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
-                                           w = all_data$reporting_delay$Px))
-
-#create dataframe
-plot_rtestim <- data.frame(
-  package = "rtEstim",
-  date = all_data$cases$day[rr] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
-  Rt_median = rtestim_cb$fit,
-  Rt_lb = rtestim_cb$`2.5%`,
-  Rt_ub = rtestim_cb$`97.5%`
-)
-
-library(tidyverse)
-
-as_tibble(plot_rtestim) %>%
-  ggplot() +
-  geom_hline(yintercept = 1, linetype = "11") +
-  # *******
-  # this is the true r(t), back-calculated
-  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
-  # *******
-  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package), alpha = 0.25) +
-  geom_line(aes(x = date, y = Rt_median, color = package)) +
-  coord_cartesian(ylim = c(0, 5)) +
-  xlab("Days") +
-  ylab("Rt") +
-  theme(
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 14)
-  )
-
-saveRDS(plot_rtestim, file = 'plot_objects/plot_data_rtestim_reports.RDS')
-
 ```
 
 # Extract the outomes using `summrt`
