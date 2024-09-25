@@ -1,0 +1,49 @@
+name: Website
+
+on:
+  push:
+    branches: [main, prod]
+  pull_request:
+    branches: [main, prod]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: rocker/tidyverse:4.4.1
+
+    name: rendering-${{ matrix.files.fn }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        files:
+         - {fn: "epiestim_vigette"}
+         - {fn: "EpiLPS_vignette"}
+         - {fn: "EpiNow2_vignette"}
+         - {fn: "RtEstim_vignette"}
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install packages
+        run: |
+          install2.r -n4 EpiLPS rtestim EpiNow2
+          installGithub.r EpiForeSITE/summrt mrc-ide/EpiEstim
+
+      - name: Render the file ${{ matrix.files.fn }}
+        run: |
+          rmarkdown::render(
+            'vignettes/${{ matrix.files.fn }}.Rmd',
+            output_format = 'rmarkdown::github_document'
+            )"
+        shell: Rscript --vanilla -e {0}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.files.fn }}
+          path: vignettes/${{ matrix.files.fn }}*
+        
