@@ -1,24 +1,30 @@
 ---
-title: "Template_individual_package_vignette"
+title: "EpiEstim"
 output: html_document
 date: "2024-09-25"
 ---
 
 # Install/load packages
+
 ```{r}
 if (!require('tidyverse')) install.packages('tidyverse'); library(tidyverse)
 if (!require('EpiEstim')) install.packages('EpiEstim', repos =  c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org')); library('EpiEstim')
+library(ggplot2)
+
+sapply(list.files("../R", full.names = TRUE), source)
 ```
 
 # Load in the data
+
 ```{r}
-url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
-all_data <- readRDS(url(url))
+all_data <- readRDS("../all_data.RDS")
 ```
 
 # Prepare the data
+
+Get incidence
+
 ```{r}
-# get incidence
 incidence_df <- data.frame(
   dates = all_data$cases$day,
   I = as.vector(all_data$cases$daily_reports)
@@ -28,16 +34,21 @@ colnames(incidence_df) <- c('dates', 'I')
 head(incidence_df)
 tail(incidence_df)
 dim(incidence_df)
+```
 
-# Serial interval from data PMF
+Serial interval from data PMF
+
+```{r}
 si_distr <- as.matrix(all_data$serial$Px)
 if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
 si_distr
 ```
 
 # Run the model
+
+Estimate R daily:
+
 ```{r}
-# Estimate R DAILY
 getR <- EpiEstim::estimate_R(
   incid = incidence_df,
   method = "non_parametric_si",
@@ -51,38 +62,29 @@ getR <- EpiEstim::estimate_R(
 ```
 
 # Extract the outomes using `summrt`
+
 ```{r}
-#
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
+incubation_shift <- round(weighted.mean(
+  x = all_data$incubation$Day,
+  w = all_data$incubation$Px
+))
 
-REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
-                                           w = all_data$reporting_delay$Px))
+reportingdelay_shift <- round(weighted.mean(
+  x = all_data$reporting_delay$Day,
+  w = all_data$reporting_delay$Px
+))
+```
 
-# PLOT DATA
-plot_data <- data.frame( ## ANNE
+Plot data:
+
+```{r}
+plot_data <- data.frame(
   package = "EpiEstim",
-  date = all_data$cases$day[getR$R$t_end] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
+  date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
   Rt_median = getR$R$`Median(R)`,
   Rt_lb = getR$R$`Quantile.0.025(R)`,
   Rt_ub = getR$R$`Quantile.0.975(R)`
 )
 
-as_tibble(plot_data) %>%
-  ggplot() +
-  geom_hline(yintercept = 1, linetype = "11") +
-  # *******
-  # this is the true r(t), back-calculated
-  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
-  # *******
-  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package),
-              alpha = 0.25) +
-  geom_line(aes(x = date, y = Rt_median, color = package)) +
-  coord_cartesian(ylim = c(0, 5)) +
-  xlab("Days") +
-  ylab("Rt") +
-  theme(
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 14)
-  )
+this_plot(plot_data, "EpiEstim")
 ```
