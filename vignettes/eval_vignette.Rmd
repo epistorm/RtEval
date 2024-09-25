@@ -1,48 +1,167 @@
 ---
-title: "SummRt"
-output: html_document
-date: "2024-09-24"
+title: "Simple R(t) estimation evaluation comparison"
+description: "An R(t) evaluation across multiple packages, fitting to simulated data, standardizing outputs, and evaluating outputs"
+author: "Kaitlyn Johnson"
+date: "2024-09-25"
+output:
+  bookdown::html_vignette2:
+    fig_caption: yes
+    code_folding: show
+pkgdown:
+  as_is: true
+vignette: >
+  %\VignetteIndexEntry{R(t) evaluation across packages: fit to simulated data with known reports}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
+# Overview
+
+The goal of this tutorial is to use multiple R(t) packages to fit to a simple, simulated outbreak
+with a known R(t), serial interval, generation interval, and reporting delay probability mass function
+(PMF). We will use the `summrt` package to generate standardized outputs, plot results, and 
+quantitatively evaluate the accuracy in R(t) estimation.
+
+Eventually we will expand this to additional vignettes that will fit to and evaluate more complex
+simulated and real datasets (this might require not evaluating just accuracy and reliability
+in R(t) but also nowcasting and forecasting expected observations and comparing to 
+the true observations). 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# start with individual packages, eventually can just load in SummRt
 library(EpiNow2)
 library(EpiEstim)
 library(rtestim)
 library(EpiLPS)
 #library(SummRt)
+library(ggplot2)
 library (tidyverse)
+library(epinowcast) # for add_pmf
 ```
+
+## Load the simulated data
 
 Load the dataset we will be fitting the R(t) estimation packages
 to in this vignette.
 
-This will eventually use package data that will be documented and
+This will eventually use data from the `rtdata` package that will be documented and
 will describe the specific epidemiological use case this
-data scenario is meant to represent. 
-```{r load-package-data}
+data scenario is meant to represent. In this case, we are going to fit to data 
+on the number of reported cases, with a known discrete generation interval probability
+mass function (PMF) and reporting delay PMF that are also provided as data.
+```{r load-rtdata}
 # We will eventually replace this with package data specific to the dataset. 
 # E.g. this might be our baseline infections, onset, report data
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
+
+ggplot(all_data$rt) + 
+  geom_line(aes(x = Day, y = Rt)) +
+  geom_hline(aes(yintercept = 1), linetype = "dashed") + 
+  xlab("Day") + ylab("R(t)") + 
+  scale_y_continuous(trans = "log") + 
+  theme_bw() + ggtitle("Simulated R(t)")
+
+ggplot(all_data$generation) +
+  geom_bar(aes(x = Day, y = Px), stat = "identity") + 
+  xlab("Day") + ylab("Generation interval PMF") +
+  theme_bw() 
+
+ggplot(all_data$reporting_delay) +
+  geom_bar(aes(x = Day, y = Px), stat = "identity") +
+  xlab("Day") + ylab("Reporting delay PMF") +
+  theme_bw()
+
+ggplot(all_data$cases) +
+  geom_bar(aes(x = day, y = daily_reports), stat = "identity") +
+  xlab("Day") + ylab("Reported cases") + 
+  theme_bw()
 ```
 
-Fit each of the packages to the dataset. This will call `SummRt` package
-functions which will use S3 methods to wrap around the individual 
-R packages. All outputs will be in a standardized format that we can use to
-evaluate the R(t) estimation (either from directly comparing to the 
-true simulated R(t) or via comparing to an evaluation dataset of held out
-retrospective observations).
-```{r fit-Rt-with-each-package}
 
-# BAD practice but will source a file. This will generate a set of standardized outputs
-source("02_EPINOW2_infections.R")
+## Use each package to estimate R(t)
 
+Fit each of the packages to the dataset. See the package specific vignettes for more
+of a walk through for the decisions made for each package. 
+```{r EpiNow2}
+
+#EpiNow2
+incidence_df = data.frame(
+  date = lubridate::make_date(2020, 3, 19) + 1:nrow(all_data$cases),
+  confirm = as.vector(all_data$cases$daily_reports)
+)
+
+gi_pmf <- NonParametric(pmf = all_data$serial$Px)
+sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
+
+
+res_epinow <- epinow(
+  data = incidence_df,
+  generation_time = generation_time_opts(gi_pmf),
+  delays = delay_opts(incubation_pmf + sym_report_delay_pmf),
+  backcalc = backcalc_opts(prior = 'reports'),
+  rt = rt_opts(rw = 1),
+  stan = stan_opts(chains = 4, cores = 4)
+)
+incidence_df$day = all_data$cases$day
+y_extract <- rstan::extract(res_epinow$estimates$fit)$R
+dim(y_extract)
+EpiNow2_plot_data <- data.frame(
+  package = "EpiNow2",
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
+  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
+  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
+  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
+)
 ```
-```{r plot-output}
+
+```{r EpiEstim}
+incidence_df <- data.frame(
+  dates = all_data$cases$day,
+  I = as.vector(all_data$cases$daily_reports)
+)
+colnames(incidence_df) <- c('dates', 'I')
+# Serial interval from data PMF
+si_distr <- as.matrix(all_data$serial$Px)
+if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
+si_distr
+
+# Estimate R DAILY
+getR <- EpiEstim::estimate_R(
+  incid = incidence_df,
+  method = "non_parametric_si",
+  config = make_config(list(
+    si_distr = si_distr,
+    t_start = 2:nrow(incidence_df),
+    t_end = 2:nrow(incidence_df)
+  )),
+  backimputation_window = 10
+)
+
+#
+INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
+                                       w = all_data$incubation$Px))
+
+REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
+                                           w = all_data$reporting_delay$Px))
+
+# PLOT DATA
+plot_data <- data.frame( ## ANNE
+  package = "EpiEstim",
+  date = all_data$cases$day[getR$R$t_end] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
+  Rt_median = getR$R$`Median(R)`,
+  Rt_lb = getR$R$`Quantile.0.025(R)`,
+  Rt_ub = getR$R$`Quantile.0.975(R)`
+)
+```
+
+# Call the `SummRt` package to standardize the outputs 
+```{r get-standardized-outputs}
+```
+
+```{r plot-outputs}
 #source file, later will call function
-source("03_plot.R")
+
 plot_epinow2 <- this_plot(pd = plot_data, 
                           title = "title")
 ```

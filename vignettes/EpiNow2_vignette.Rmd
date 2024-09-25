@@ -58,7 +58,10 @@ incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 ```
 
 # Run the model
-EpiNow2 takes in the reporting delay distribution. EpiNow2 uses rstan and we specify the option to have 4 chains.
+
+
+EpiNow2 takes in the reporting delay distribution. EpiNow2 uses rstan and we specify the option to have 4 chains. Finally, we print the total run time for the model.
+
 
 ```{r, include=FALSE}
 start.time <- Sys.time()
@@ -77,63 +80,9 @@ run.time <- end.time-start.time
 
 print(run.time)
 
-```
-# Results
-We extract the results from EpiNow2 and prepare it for plotting and summarizing. To align dates for plotting, we calculate the mean of the incubation distribution and transform report dates back by this mean.
 
-```{r, include=FALSE}
-incidence_df$day = all_data$cases$day
-
-y_extract <- rstan::extract(res_epinow$estimates$fit)$R
-dim(y_extract)
-
-# y_date = res_epinow$estimates$summarised %>% filter(variable == 'R')
-# head(y_date)
-# View(res_epinow$samples)
-
-##
-# * including this since i havent figured out how to do it above
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
-##
-
-plot_data <- data.frame(
-  package = "EpiNow2",
-  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
-  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
-  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
-  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
-)
-
-as_tibble(plot_data) %>%
-  ggplot() +
-  geom_hline(yintercept = 1, linetype = "11") +
-  # *******
-  # this is the true r(t), back-calculated
-  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
-  # *******
-  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package),
-              alpha = 0.25) +
-  geom_line(aes(x = date, y = Rt_median, color = package)) +
-  coord_cartesian(ylim = c(0, 5)) +
-  xlab("Days") +
-  ylab("Rt") +
-  theme(
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 14)
-  )
-
-saveRDS(plot_data, "plot_objects/plot_data_EpiNow2_report.RDS")
-
+saveRDS(res_epinow, "EpiNow2_report.RDS")
 
 ```
-
-# Extract the outomes using `summrt`
-
-
-
-
-
-
 
 
