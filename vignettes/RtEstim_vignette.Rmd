@@ -1,6 +1,6 @@
 ---
 title: "Rt Estimation with rtestim Package"
-author: "Peiwen Liu, ..."
+author: "Peiwen Liu, Abby Leung"
 date: "2024-09-25"
 output: rmarkdown::html_vignette
 vignette: >
@@ -27,6 +27,7 @@ library(rtestim)
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
+library(summrt)
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
 
