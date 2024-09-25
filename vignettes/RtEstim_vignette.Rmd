@@ -79,6 +79,7 @@ REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
 ```
 
 ### create rtestim output
+Adjust infection date based on incubation period and reporting delay period.
 ```{r df, echo=TRUE, include=TRUE, eval=TRUE}
 plot_rtestim <- data.frame(
   package = "rtEstim",
