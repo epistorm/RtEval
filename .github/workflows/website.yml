@@ -44,7 +44,7 @@ jobs:
           rmarkdown::render(
             'vignettes/${{ matrix.files.fn }}.Rmd',
             output_format = 'rmarkdown::github_document'
-            )"
+            )
         shell: Rscript --vanilla -e "{0}"
 
       - uses: actions/upload-artifact@v4
