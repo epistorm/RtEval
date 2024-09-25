@@ -76,6 +76,7 @@ end.time <- Sys.time()
 run.time <- end.time-start.time
 
 print(run.time)
+# this is not running on Laura's machine
 
 ```
 # Results
