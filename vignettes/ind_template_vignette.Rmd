@@ -1,0 +1,13 @@
+---
+title: "Template_individual_package_vignette"
+output: html_document
+date: "2024-09-25"
+---
+
+# Load in the data
+```{r setup, include=FALSE}
+```
+
+# Run the model
+
+# Extract the outomes using `summrt`
