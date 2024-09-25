@@ -1184,7 +1184,8 @@ Now can now download **line-list** data for every person within the modeling win
 ```{r, echo = FALSE}
 inputPanel(
   downloadButton("downloadData", "LineList data"),
-  downloadButton("downloadAggData", "Aggregated data")
+  downloadButton("downloadAggData", "Aggregated data"),
+  downloadButton("downloadVintageData", "Vintage data"),
 )
 
 output$downloadData <- downloadHandler(
@@ -1214,6 +1215,35 @@ output$downloadAggData <- downloadHandler(
         write.csv(  as_tibble(aggDat()), file, row.names = F)
     }
 )
+
+output$downloadVintageData <- downloadHandler(
+    filename = function() {
+        paste("vintage_data", Sys.Date(), ".csv", sep = "")
+    },
+    
+    content = function(file) {
+          data_x <- as_tibble(dat_all()) %>%
+      select(-gi1) %>% ## remove g1
+      rename("Daily Infections" = i1, 
+             "Daily Onsets" = o1, 
+             "Daily Reports" = d1) %>%
+      pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                            "Daily Reports")) %>%
+      group_by(name, value) %>% tally() %>%
+      filter(name == 'Daily Reports')
+
+    # first, remove anything after vintage day
+    every_x_days = seq(from = input$vintage_every, 
+                       to = input$ld, by = input$vintage_every)
+    data_x_vintage_l <- lapply(
+      every_x_days, function(limit_i) {
+        get_vintage_data(data_x, vintage_limit = limit_i) })
+    data_x_vintage = do.call(rbind, data_x_vintage_l)
+      
+        write.csv(  as_tibble(data_x_vintage), file, row.names = F)
+    }
+)
+
 
 ```
 
@@ -1324,6 +1354,26 @@ output$all_rds <- downloadHandler(
     },
     
     content = function(file) {
+        
+      data_x <- as_tibble(dat_all()) %>%
+      select(-gi1) %>% ## remove g1
+      rename("Daily Infections" = i1, 
+             "Daily Onsets" = o1, 
+             "Daily Reports" = d1) %>%
+      pivot_longer(cols = c("Daily Infections", "Daily Onsets", 
+                            "Daily Reports")) %>%
+      group_by(name, value) %>% tally() %>%
+      filter(name == 'Daily Reports')
+
+    # first, remove anything after vintage day
+    every_x_days = seq(from = input$vintage_every, 
+                       to = input$ld, by = input$vintage_every)
+    data_x_vintage_l <- lapply(
+      every_x_days, function(limit_i) {
+        get_vintage_data(data_x, vintage_limit = limit_i) })
+    data_x_vintage = do.call(rbind, data_x_vintage_l)
+      
+      
         saveRDS(object = list(
           'incubation' = as_tibble(inc_data())%>%rename(Day = x,"Px" = n),
           'generation' = as_tibble(gen_data())%>%rename(Day = x,"Px" = n),
@@ -1334,7 +1384,8 @@ output$all_rds <- downloadHandler(
                            "Rt" = y) %>%
                              left_join(calc_rt() %>%
                                          rename(Day = x, 'Rt_calc' = rt))),
-          'cases' = as_tibble(aggDat())
+          'cases' = as_tibble(aggDat()),
+          'vintage' = data_x_vintage
         ), file = file)
     }
 )
