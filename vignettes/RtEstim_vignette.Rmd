@@ -1,4 +1,5 @@
 ---
+<<<<<<< HEAD
 title: "Rt Estimation with rtestim Package"
 author: "Peiwen Liu, Abby Leung"
 date: "2024-09-25"
@@ -51,10 +52,32 @@ rr defines the range of rows from the dataset all_data$cases that will be includ
 rr <- 2:nrow(all_data$cases)
 
 rtestim <- cv_estimate_rt(
+=======
+title: "Template_individual_package_vignette"
+output: html_document
+date: "2024-09-25"
+---
+
+# Load in the data
+```{r setup, include=FALSE}
+library(rtestim)
+url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
+all_data <- readRDS(url(url))
+
+#rt estimation
+rr <- 2:nrow(all_data$cases)
+```
+
+
+# Run the model
+```{r setup, include=FALSE}
+rtestim <- estimate_rt(
+>>>>>>> 7a67b76 (created rtestim vignette)
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
+<<<<<<< HEAD
 ```
 
 ## Extract the outomes using `summrt`
@@ -72,16 +95,29 @@ The lambda value, derived from cross-validation, controls the smoothness of the 
 # Plotting output
 We first compute the shifts for incubation and reporting delay.
 ``` {r shift, echo=TRUE, include=TRUE, eval=TRUE}
+=======
+
+#approximate confidence bands
+rtestim_cb <- confband(rtestim, lambda = rtestim$lambda[37])
+#lambda: the selected lambda. May be a scalar value,
+# or in the case of cv_poisson_rt objects, "lambda.min" or "lambda.max"
+
+>>>>>>> 7a67b76 (created rtestim vignette)
 INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
                                        w = all_data$incubation$Px))
 
 REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
                                            w = all_data$reporting_delay$Px))
+<<<<<<< HEAD
 ```
 
 ### create rtestim output
 Adjust infection date based on incubation period and reporting delay period.
 ```{r df, echo=TRUE, include=TRUE, eval=TRUE}
+=======
+
+#create dataframe
+>>>>>>> 7a67b76 (created rtestim vignette)
 plot_rtestim <- data.frame(
   package = "rtEstim",
   date = all_data$cases$day[rr] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
@@ -89,10 +125,16 @@ plot_rtestim <- data.frame(
   Rt_lb = rtestim_cb$`2.5%`,
   Rt_ub = rtestim_cb$`97.5%`
 )
+<<<<<<< HEAD
 ```
 
 ### plot format
 ``` {r plot, echo=TRUE, include=TRUE, eval=TRUE, fig.height = 4, fig.width = 7}
+=======
+
+library(tidyverse)
+
+>>>>>>> 7a67b76 (created rtestim vignette)
 as_tibble(plot_rtestim) %>%
   ggplot() +
   geom_hline(yintercept = 1, linetype = "11") +
@@ -109,4 +151,13 @@ as_tibble(plot_rtestim) %>%
     axis.text = element_text(size = 10),
     axis.title = element_text(size = 14)
   )
+<<<<<<< HEAD
 ```
+=======
+
+saveRDS(plot_rtestim, file = 'plot_objects/plot_data_rtestim_reports.RDS')
+
+```
+
+# Extract the outomes using `summrt`
+>>>>>>> 7a67b76 (created rtestim vignette)
