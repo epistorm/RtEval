@@ -40,7 +40,7 @@ jobs:
           installGithub.r dajmcdon/rtestim
 
       - name: Render the file ${{ matrix.files.fn }}
-        run: Rscript --vanilla -e 'rmarkdown::render("vignettes/${{ matrix.files.fn }}.Rmd", output_format = "rmarkdown::github_document")
+        run: Rscript --vanilla -e 'rmarkdown::render("vignettes/${{ matrix.files.fn }}.Rmd", output_format = "rmarkdown::github_document")'
 
       - uses: actions/upload-artifact@v4
         with:
