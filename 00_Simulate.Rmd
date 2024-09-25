@@ -994,7 +994,7 @@ get_vintage_data <- function(data_x, vintage_limit) {
     report_x$value = max_d - report_x$Day
     report_x$Day <- NULL
     report_x$Px <- NULL
-    data_x_vintage <- data_x_vintage %>% full_join(report_x)
+    data_x_vintage <- data_x_vintage %>% full_join(report_x, by = join_by(value))
     data_x_vintage$rev_Px[is.na(data_x_vintage$rev_Px)] <- 1
     # so the simplest version is just to take the fraction, so lets start with that
     data_x_vintage$n_vintage = data_x_vintage$n * data_x_vintage$rev_Px

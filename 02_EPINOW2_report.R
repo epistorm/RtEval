@@ -26,18 +26,13 @@ any(is.na(incidence_df))
 
 ####
 gi_pmf <- NonParametric(pmf = all_data$serial$Px)
-delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
-
-## ******
-## Note for Sam -- how to incorporate this?
+sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
-## *****
 
-#
 res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
-  delays = delay_opts(delay_pmf),
+  delays = delay_opts(incubation_pmf + sym_report_delay_pmf),
   backcalc = backcalc_opts(prior = 'reports'),
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
@@ -52,16 +47,11 @@ dim(y_extract)
 # head(y_date)
 # View(res_epinow$samples)
 
-##
-# * including this since i havent figured out how to do it above
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
-##
 
 
 plot_data <- data.frame(
   package = "EpiNow2",
-  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
   Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
   Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
   Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
