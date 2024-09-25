@@ -4,10 +4,137 @@ output: html_document
 date: "2024-09-25"
 ---
 
+```{r,include=F}
+# load packages
+library(tidyverse)
+require(EpiNow2)
+```
+
 # Load in the data
+We first load in the sample dataset that we have generated using Simulate.RMD. This list contains the incubation period (incubation), generation interval (generation), transmission interval (transmission), serial interval (serial), reporting delay distribution (reporting_delay), true values of $R_t$ (rt), and number of cases by infection, onset and report day (cases).
+
 ```{r setup, include=FALSE}
+
+url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
+all_data <- readRDS(url(url))
+```
+
+# Prepare the data for analysis data
+We will evaluate the package using the daily report data. We set up the data to be a data frame with two columns. The first column has the date and the second column has the case counts. The data starts with a row with no cases.
+
+```{r, include=FALSE}
+# ********************************
+case_choice <- 'daily_reports'
+# Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
+# ********************************
+
+rr <- which(colnames(all_data$cases) == case_choice)
+
+# columns are called `date` and `confirm`
+incidence_df = data.frame(
+  date = lubridate::make_date(2020, 3, 19) + 1:nrow(all_data$cases),
+  confirm = as.vector(all_data$cases[, rr]))
+
+dim(incidence_df)
+
+colnames(incidence_df) <- c('date', 'confirm')
+head(incidence_df)
+tail(incidence_df)
+any(is.na(incidence_df))
+```
+
+We also specify the multinomial versions of the generation and reporting delay intervals. We use the built in function NonParametric() within EpiNow2 to transform our vector of probabilities that define the multinomial distributions into the pmf distribution that EpiNow2 expects.
+
+```{r}
+####
+gi_pmf <- NonParametric(pmf = all_data$serial$Px)
+delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+
+## ******
+## Note for Sam -- how to incorporate this?
+incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
+## *****
+
 ```
 
 # Run the model
+EpiNow2 takes in the reporting delay distribution. EpiNow2 uses rstan and we specify the option to have 4 chains.
+
+```{r, include=FALSE}
+start.time <- Sys.time()
+#
+res_epinow <- epinow(
+  data = incidence_df,
+  generation_time = generation_time_opts(gi_pmf),
+  delays = delay_opts(delay_pmf),
+  backcalc = backcalc_opts(prior = 'reports'),
+  rt = rt_opts(rw = 1),
+  stan = stan_opts(chains = 4, cores = 4)
+)
+end.time <- Sys.time()
+
+run.time <- end.time-start.time
+
+print(run.time)
+
+```
+# Results
+We extract the results from EpiNow2 and prepare it for plotting and summarizing.
+
+```{r, include=FALSE}
+incidence_df$day = all_data$cases$day
+
+y_extract <- rstan::extract(res_epinow$estimates$fit)$R
+dim(y_extract)
+
+# y_date = res_epinow$estimates$summarised %>% filter(variable == 'R')
+# head(y_date)
+# View(res_epinow$samples)
+
+##
+# * including this since i havent figured out how to do it above
+INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
+                                       w = all_data$incubation$Px))
+##
+
+
+plot_data <- data.frame(
+  package = "EpiNow2",
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
+  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
+  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
+  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
+)
+
+as_tibble(plot_data) %>%
+  ggplot() +
+  geom_hline(yintercept = 1, linetype = "11") +
+  # *******
+  # this is the true r(t), back-calculated
+  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
+  # *******
+  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package),
+              alpha = 0.25) +
+  geom_line(aes(x = date, y = Rt_median, color = package)) +
+  coord_cartesian(ylim = c(0, 5)) +
+  xlab("Days") +
+  ylab("Rt") +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 14)
+  )
+
+saveRDS(plot_data, "plot_objects/plot_data_EpiNow2_report.RDS")
+
+
+```
 
 # Extract the outomes using `summrt`
+
+
+
+
+
+
+
+
