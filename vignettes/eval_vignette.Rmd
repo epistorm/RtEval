@@ -1,5 +1,5 @@
 ---
-title: "SummRt"
+title: "Simple R(t) estimation evaluation comparison"
 description: "An R(t) evaluation across multiple packages, fitting to simulated data, standardizing outputs, and evaluating outputs"
 author: "Kaitlyn Johnson"
 date: "2024-09-25"
