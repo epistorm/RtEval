@@ -31,8 +31,8 @@ jobs:
 
       - name: Install packages
         run: |
-          install2.r -n4 EpiLPS rtestim EpiNow2
-          installGithub.r EpiForeSITE/summrt mrc-ide/EpiEstim
+          install2.r -n4 EpiLPS EpiNow2
+          installGithub.r EpiForeSITE/summrt mrc-ide/EpiEstim dajmcdon/rtestim
 
       - name: Render the file ${{ matrix.files.fn }}
         run: |
