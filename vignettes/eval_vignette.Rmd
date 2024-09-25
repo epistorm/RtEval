@@ -91,25 +91,14 @@ incidence_df = data.frame(
 )
 
 gi_pmf <- NonParametric(pmf = all_data$serial$Px)
-delay_pmf <- all_data$reporting_delay$Px
-incubation_pmf <- all_data$incubation$Px
+sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 
-pmfs <- list(
-  "incubation_period" = incubation_pmf,
-  "sym_report_delay_pmf" = sym_report_delay_pmf
-)
-to_simplex <- function(vector) {
-  return(vector / sum(vector))
-}
-# Assign to non parametric PMF
-delay_pmf <- NonParametric(pmf = 
-                             epinowcast::add_pmfs(pmfs) |> 
-                             to_simplex()
-)
+
 res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
-  delays = delay_opts(delay_pmf),
+  delays = delay_opts(incubation_pmf + sym_report_delay_pmf),
   backcalc = backcalc_opts(prior = 'reports'),
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
