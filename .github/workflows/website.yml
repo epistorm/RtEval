@@ -16,6 +16,9 @@ jobs:
 
     name: rendering-${{ matrix.files.fn }}
 
+    env: 
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +35,7 @@ jobs:
       - name: Install packages
         run: |
           install2.r -n4 EpiLPS EpiNow2
-          installGithub.r EpiForeSITE/summrt mrc-ide/EpiEstim dajmcdon/rtestim
+          installGithub.r -n1 EpiForeSITE/summrt mrc-ide/EpiEstim dajmcdon/rtestim
 
       - name: Render the file ${{ matrix.files.fn }}
         run: |
