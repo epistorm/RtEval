@@ -7,14 +7,14 @@ all_data <- readRDS(url(url))
 #rt estimation
 rr <- 2:nrow(all_data$cases)
 
-rtestim <- estimate_rt(
+rtestim <- cv_estimate_rt(
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
 
 #approximate confidence bands
-rtestim_cb <- confband(rtestim, lambda = rtestim$lambda[37])
+rtestim_cb <- onfband(rtestim, lambda = "lambda.1se")
 #lambda: the selected lambda. May be a scalar value,
 # or in the case of cv_poisson_rt objects, "lambda.min" or "lambda.max"
 

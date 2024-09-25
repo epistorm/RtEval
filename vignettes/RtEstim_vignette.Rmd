@@ -23,9 +23,21 @@ url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
 
 ```
+The data includes:
 
++ daily_reports: Daily reported case counts
++ serial: Distribution of the serial interval between cases
++ incubation: Incubation period distribution
++ reporting_delay: Delay in reporting case data
 
-# Run the model
+These will be used to estimate 
+  over the observation period.
+
+## Running the Rt Estimation Model
+Next, we will estimate the reproduction number \(R_t\) using the `estimate_rt` function. 
+
+This function requires the observed daily case counts, the corresponding days, and the serial interval distribution as inputs.
+
 ```{r runcode, echo=TRUE, include=TRUE, eval=TRUE}
 rr <- 2:nrow(all_data$cases)
 
@@ -34,11 +46,17 @@ rtestim <- estimate_rt(
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
+```
+The estimate_rt function uses the daily reports and the serial interval to produce time-varying estimates of the reproduction number \(R_t\)Calculating Confidence Bands
 
+We can compute approximate confidence bands around the \(R_t\)estimates using the confband function. These confidence bands help provide uncertainty intervals for the estimates.
+
+``` {Approximate confidence bands, echo=TRUE, include=TRUE, eval=TRUE}
 # Approximate confidence bands
 rtestim_cb <- confband(rtestim, lambda = rtestim$lambda[37])
 ```
 
+The lambda value, derived from cross-validation, controls the smoothness of the estimated curve. The function outputs the fit and credible intervals (e.g., 2.5% and 97.5% quantiles), which are used to visualize the uncertainty.
 # Plotting output
 We first compute the shifts for incubation and reporting delay.
 ``` {r shift, echo=TRUE, include=TRUE, eval=TRUE}
@@ -49,7 +67,7 @@ REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
                                            w = all_data$reporting_delay$Px))
 ```
 Create dataframe needed 
-``` {r plot, echo=TRUE, include=TRUE, eval=TRUE}
+``` {r df, echo=TRUE, include=TRUE, eval=TRUE}
 as_tibble(plot_rtestim) %>%
   ggplot() +
   geom_hline(yintercept = 1, linetype = "11") +
