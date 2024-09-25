@@ -35,6 +35,7 @@ library(EpiLPS)
 #library(SummRt)
 library(ggplot2)
 library (tidyverse)
+library(epinowcast) # for add_pmf
 ```
 
 ## Load the simulated data
@@ -90,10 +91,21 @@ incidence_df = data.frame(
 )
 
 gi_pmf <- NonParametric(pmf = all_data$serial$Px)
-delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
-incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
+delay_pmf <- all_data$reporting_delay$Px
+incubation_pmf <- all_data$incubation$Px
 
-
+pmfs <- list(
+  "incubation_period" = incubation_pmf,
+  "sym_report_delay_pmf" = sym_report_delay_pmf
+)
+to_simplex <- function(vector) {
+  return(vector / sum(vector))
+}
+# Assign to non parametric PMF
+delay_pmf <- NonParametric(pmf = 
+                             epinowcast::add_pmfs(pmfs) |> 
+                             to_simplex()
+)
 res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
@@ -102,26 +114,12 @@ res_epinow <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
-
 incidence_df$day = all_data$cases$day
-
 y_extract <- rstan::extract(res_epinow$estimates$fit)$R
 dim(y_extract)
-
-# y_date = res_epinow$estimates$summarised %>% filter(variable == 'R')
-# head(y_date)
-# View(res_epinow$samples)
-
-##
-# * including this since i havent figured out how to do it above
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
-##
-
-
-plot_data <- data.frame(
+EpiNow2_plot_data <- data.frame(
   package = "EpiNow2",
-  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7),
   Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
   Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
   Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
@@ -131,15 +129,14 @@ plot_data <- data.frame(
 
 
 ```
-This will call `SummRt` package
-functions which will use S3 methods to wrap around the individual 
-R packages. All outputs will be in a standardized format that we can use to
-evaluate the R(t) estimation (either from directly comparing to the 
-true simulated R(t) or via comparing to an evaluation dataset of held out
-retrospective observations).
-```{r plot-output}
+
+# Call the `SummRt` package to standardize the outputs 
+```{r get-standardized-outputs}
+```
+
+```{r plot-outputs}
 #source file, later will call function
-source("03_plot.R")
+
 plot_epinow2 <- this_plot(pd = plot_data, 
                           title = "title")
 ```
