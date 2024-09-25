@@ -44,23 +44,91 @@ to in this vignette.
 
 This will eventually use data from the `rtdata` package that will be documented and
 will describe the specific epidemiological use case this
-data scenario is meant to represent. In this case, we are going to 
-fit to data on the number of reported
+data scenario is meant to represent. In this case, we are going to fit to data 
+on the number of reported cases, with a known discrete generation interval probability
+mass function (PMF) and reporting delay PMF that are also provided as data.
 ```{r load-rtdata}
 # We will eventually replace this with package data specific to the dataset. 
 # E.g. this might be our baseline infections, onset, report data
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
+
+ggplot(all_data$rt) + 
+  geom_line(aes(x = Day, y = Rt)) +
+  geom_hline(aes(yintercept = 1), linetype = "dashed") + 
+  xlab("Day") + ylab("R(t)") + 
+  scale_y_continuous(trans = "log") + 
+  theme_bw() + ggtitle("Simulated R(t)")
+
+ggplot(all_data$generation) +
+  geom_bar(aes(x = Day, y = Px), stat = "identity") + 
+  xlab("Day") + ylab("Generation interval PMF") +
+  theme_bw() 
+
+ggplot(all_data$reporting_delay) +
+  geom_bar(aes(x = Day, y = Px), stat = "identity") +
+  xlab("Day") + ylab("Reporting delay PMF") +
+  theme_bw()
+
+ggplot(all_data$cases) +
+  geom_bar(aes(x = day, y = daily_reports), stat = "identity") +
+  xlab("Day") + ylab("Reported cases") + 
+  theme_bw()
 ```
 
 
 ## Use each package to estimate R(t)
 
-Fit each of the packages to the dataset. 
+Fit each of the packages to the dataset. See the package specific vignettes for more
+of a walk through for the decisions made for each package. 
 ```{r fit-Rt-with-each-package}
 
 #EpiNow2
-source("02_EPINOW2_infections.R")
+incidence_df = data.frame(
+  date = lubridate::make_date(2020, 3, 19) + 1:nrow(all_data$cases),
+  confirm = as.vector(all_data$cases$daily_reports)
+)
+
+gi_pmf <- NonParametric(pmf = all_data$serial$Px)
+delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
+
+
+res_epinow <- epinow(
+  data = incidence_df,
+  generation_time = generation_time_opts(gi_pmf),
+  delays = delay_opts(delay_pmf),
+  backcalc = backcalc_opts(prior = 'reports'),
+  rt = rt_opts(rw = 1),
+  stan = stan_opts(chains = 4, cores = 4)
+)
+
+incidence_df$day = all_data$cases$day
+
+y_extract <- rstan::extract(res_epinow$estimates$fit)$R
+dim(y_extract)
+
+# y_date = res_epinow$estimates$summarised %>% filter(variable == 'R')
+# head(y_date)
+# View(res_epinow$samples)
+
+##
+# * including this since i havent figured out how to do it above
+INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
+                                       w = all_data$incubation$Px))
+##
+
+
+plot_data <- data.frame(
+  package = "EpiNow2",
+  date = c(all_data$cases$day, max(all_data$cases$day) + 1:7) - INCUBATION_SHIFT,
+  Rt_median = apply(y_extract, 2, quantile, probs = 0.5),
+  Rt_lb = apply(y_extract, 2, quantile, probs = 0.025),
+  Rt_ub = apply(y_extract, 2, quantile, probs = 0.975)
+)
+
+
+
 
 ```
 This will call `SummRt` package
