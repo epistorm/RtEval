@@ -1,5 +1,4 @@
 library(tidyverse)
-library(epinowcast) # needed for convolution, could probs use something different though
 require(EpiNow2)
 
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
@@ -39,12 +38,18 @@ pmfs <- list(
 to_simplex <- function(vector) {
   return(vector / sum(vector))
 }
-# Assign to non parametric PMF
-delay_pmf <- NonParametric(pmf = 
-                             epinowcast::add_pmfs(pmfs) |> 
-                             to_simplex()
-)
 
+diff <- length(incubation_pmf) - length(sym_report_delay_pmf)
+stopifnot(diff >= 0)
+
+delay_pmf <- stats::convolve(
+    incubation_pmf,
+    rev(c(sym_report_delay_pmf, rep(0, diff))),
+    type = "open"
+  ) |>
+  to_simplex() |>
+  head(n = length(incubation_pmf) + length(sym_report_delay_pmf)) |>
+  NonParametric()
 
 res_epinow <- epinow(
   data = incidence_df,
