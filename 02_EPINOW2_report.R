@@ -26,35 +26,13 @@ any(is.na(incidence_df))
 
 ####
 gi_pmf <- NonParametric(pmf = all_data$serial$Px)
-# Delay is symptom onset to report, therefore need to convolve with
-# incubation to get the delay from infection to report
-sym_report_delay_pmf <- all_data$reporting_delay$Px
-incubation_pmf <- all_data$incubation$Px
-
-pmfs <- list(
-  "incubation_period" = incubation_pmf,
-  "sym_report_delay_pmf" = sym_report_delay_pmf
-)
-to_simplex <- function(vector) {
-  return(vector / sum(vector))
-}
-
-diff <- length(incubation_pmf) - length(sym_report_delay_pmf)
-stopifnot(diff >= 0)
-
-delay_pmf <- stats::convolve(
-    incubation_pmf,
-    rev(c(sym_report_delay_pmf, rep(0, diff))),
-    type = "open"
-  ) |>
-  to_simplex() |>
-  head(n = length(incubation_pmf) + length(sym_report_delay_pmf)) |>
-  NonParametric()
+sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
+incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 
 res_epinow <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
-  delays = delay_opts(delay_pmf),
+  delays = delay_opts(incubation_pmf + sym_report_delay_pmf),
   backcalc = backcalc_opts(prior = 'reports'),
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
