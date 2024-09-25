@@ -1,112 +1,107 @@
 ---
-title: "Rt Estimation with rtestim Package"
-author: "Peiwen Liu, Abby Leung"
+title: "EpiEstim"
+output: html_document
 date: "2024-09-25"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Rt Estimation with rtestim}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
-```{r init, include=FALSE}
+```{r setup, include=FALSE} 
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
-# Introduction
-
-This vignette demonstrates how to use the `rtestim` package to estimate the reproduction number \(R_t\) for a disease based on observed case counts and other relevant delay distributions. We will load in pre-processed data, run the `estimate_rt` model, and visualize the results along with confidence bands.
-
-## Load Data
-
-To start, we will load the required data. The data includes daily reported cases, serial interval, incubation period, and reporting delay distributions.
-
-```{r setup, echo=TRUE, include=TRUE, eval=TRUE}
-
-library(rtestim)
-library(ggplot2)
-library(dplyr)
-library(tidyverse)
-library(summrt)
-url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
-all_data <- readRDS(url(url))
-
+# Source functions
+```{r source_functions, echo = T, results = 'hide'}
+sapply(list.files("../R", full.names = TRUE), source)
 ```
-The data includes:
 
-+ daily_reports: Daily reported case counts
-+ serial: Distribution of the serial interval between cases
-+ incubation: Incubation period distribution
-+ reporting_delay: Delay in reporting case data
+# Install/load packages
 
-These will be used to estimate 
-  over the observation period.
+```{r load_packages}
+if (!require('devtools')) install.packages('devtools'); library(devtools)
+if (!require('summrt')) devtools::install_github("EpiForeSITE/summrt"); library(summrt)
+if (!require('tidyverse')) install.packages('tidyverse'); library(tidyverse)
+if (!require('EpiEstim')) install.packages('EpiEstim', repos =  c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org')); library('EpiEstim')
+if (!require('ggplot2')) install.packages('ggplot2'); library(ggplot2)
+if (!require('lemon')) install.packages('lemon'); library(lemon)
+if (!require('ggtext')) install.packages('ggtext'); library(ggtext)
+```
 
-## Running the Rt Estimation Model
-Next, we will estimate the reproduction number \(R_t\) using the `estimate_rt` function. 
+# Load in the data
 
-This function requires the observed daily case counts, the corresponding days, and the serial interval distribution as inputs.
-rr defines the range of rows from the dataset all_data$cases that will be included in the     analysis.
-```{r runcode, echo=TRUE, include=TRUE, eval=TRUE}
-rr <- 2:nrow(all_data$cases)
+```{r load_data}
+all_data <- readRDS("../all_data.RDS")
+```
 
-rtestim <- cv_estimate_rt(
-  observed_counts = all_data$cases$daily_reports[rr],
-  x = all_data$cases$day[rr],
-  delay_distn = all_data$serial$Px
+# Prepare the data
+
+Get incidence
+
+```{r get_incidence}
+incidence_df <- data.frame(
+  dates = all_data$cases$day,
+  I = as.vector(all_data$cases$daily_reports)
+)
+colnames(incidence_df) <- c('dates', 'I')
+
+head(incidence_df)
+tail(incidence_df)
+dim(incidence_df)
+```
+
+Serial interval from data PMF
+
+```{r serial_interval}
+si_distr <- as.matrix(all_data$serial$Px)
+if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
+si_distr
+```
+
+# Run the model
+
+Estimate R daily:
+
+```{r estimate_rt}
+getR <- EpiEstim::estimate_R(
+  incid = incidence_df,
+  method = "non_parametric_si",
+  config = EpiEstim::make_config(list(
+    si_distr = si_distr,
+    t_start = 2:nrow(incidence_df),
+    t_end = 2:nrow(incidence_df)
+  )),
+  backimputation_window = 10
 )
 ```
 
-## Extract the outomes using `summrt`
+# Extract the outcomes using `summrt`
 
-The estimate_rt function uses the daily reports and the serial interval to produce time-varying estimates of the reproduction number \(R_t\)Calculating Confidence Bands
-
-We can compute approximate confidence bands around the \(R_t\)estimates using the confband function. These confidence bands help provide uncertainty intervals for the estimates.
-
-``` {r approximate confidence bands, echo=TRUE, include=TRUE, eval=TRUE}
-rtestim_cb <- confband(rtestim, lambda = "lambda.1se")
+```{r extract_outcomes}
+output <- summarize_rtestimate(getR)
 ```
 
-The lambda value, derived from cross-validation, controls the smoothness of the estimated curve. The function outputs the fit and credible intervals (e.g., 2.5% and 97.5% quantiles), which are used to visualize the uncertainty.
+# Plot the data
 
-# Plotting output
-We first compute the shifts for incubation and reporting delay.
-``` {r shift, echo=TRUE, include=TRUE, eval=TRUE}
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
+```{r extract_outcomes}
+incubation_shift <- round(weighted.mean(
+  x = all_data$incubation$Day,
+  w = all_data$incubation$Px
+))
 
-REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
-                                           w = all_data$reporting_delay$Px))
+reportingdelay_shift <- round(weighted.mean(
+  x = all_data$reporting_delay$Day,
+  w = all_data$reporting_delay$Px
+))
 ```
 
-### create rtestim output
-Adjust infection date based on incubation period and reporting delay period.
-```{r df, echo=TRUE, include=TRUE, eval=TRUE}
-plot_rtestim <- data.frame(
-  package = "rtEstim",
-  date = all_data$cases$day[rr] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
-  Rt_median = rtestim_cb$fit,
-  Rt_lb = rtestim_cb$`2.5%`,
-  Rt_ub = rtestim_cb$`97.5%`
+Plot data:
+
+```{r plot_data}
+plot_data <- data.frame(
+  package = "EpiEstim",
+  date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
+  Rt_median = getR$R$`Median(R)`,
+  Rt_lb = getR$R$`Quantile.0.025(R)`,
+  Rt_ub = getR$R$`Quantile.0.975(R)`
 )
-```
 
-### plot format
-``` {r plot, echo=TRUE, include=TRUE, eval=TRUE, fig.height = 4, fig.width = 7}
-as_tibble(plot_rtestim) %>%
-  ggplot() +
-  geom_hline(yintercept = 1, linetype = "11") +
-  # *******
-  # this is the true r(t), back-calculated
-  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
-  # *******
-  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package), alpha = 0.25) +
-  geom_line(aes(x = date, y = Rt_median, color = package)) +
-  coord_cartesian(ylim = c(0, 5)) +
-  xlab("Days") +
-  ylab("Rt") +
-  theme(
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 14)
-  )
+this_plot(plot_data, "EpiEstim")
 ```
