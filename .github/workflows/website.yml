@@ -27,6 +27,7 @@ jobs:
          - {fn: "EpiLPS_vignette"}
          - {fn: "EpiNow2_vignette"}
          - {fn: "RtEstim_vignette"}
+         - {fn: "eval_vignette"}
         
     steps:
       - name: Checkout code
