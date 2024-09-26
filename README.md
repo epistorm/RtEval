@@ -12,11 +12,11 @@
 
 The following vignettes (which are hosted under the [vignettes](vignettes) folder) were automatically built using GitHubActions:
 
-- epiestim: <https://github.com/epistorm/RtEval/epiestim_vignette.html>
-- EpiLPS: <https://github.com/epistorm/RtEval/EpiLPS_vignette.html>
-- EpiNow2: <https://github.com/epistorm/RtEval/EpiNow2_vignette.html>
-- RtEstim: <https://github.com/epistorm/RtEval/RtEstim_vignette.html>
-- Joint: <https://github.com/epistorm/RtEval/eval_vignette.html>
+- epiestim: <https://epistorm.github.io/RtEval/epiestim_vignette.html>
+- EpiLPS: <https://epistorm.github.io/RtEval/EpiLPS_vignette.html>
+- EpiNow2: <https://epistorm.github.io/RtEval/EpiNow2_vignette.html>
+- RtEstim: <https://epistorm.github.io/RtEval/RtEstim_vignette.html>
+- Joint: <https://epistorm.github.io/RtEval/eval_vignette.html>
 
 ## Structure
 
