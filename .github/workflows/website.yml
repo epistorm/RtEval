@@ -83,6 +83,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: website/
+
+      - name: Moving files
+        run: |
+          mv website/*/ website/
       
       - name: Upload artifacts
         uses: actions/upload-pages-artifact@v3
