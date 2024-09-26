@@ -80,7 +80,7 @@ output <- summarize_rtestimate(getR)
 
 # Plot the data
 
-```{r extract_outcomes}
+```{r plot_data_prep}
 incubation_shift <- round(weighted.mean(
   x = all_data$incubation$Day,
   w = all_data$incubation$Px
