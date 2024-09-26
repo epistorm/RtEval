@@ -39,7 +39,6 @@ library(EpiLPS)
 require(summRt)
 library(ggplot2)
 library (tidyverse)
-library(epinowcast) # for add_pmf
 ```
 
 ## Load the simulated data
@@ -52,6 +51,9 @@ will describe the specific epidemiological use case this
 data scenario is meant to represent. In this case, we are going to fit to data 
 on the number of reported cases, with a known discrete generation interval probability
 mass function (PMF) and reporting delay PMF that are also provided as data.
+
+One of the goals of this evaluation using the `summrt` package is to standardize date/time indexing. All R(t) estimates from each package should be lined
+up such that the time vector returned alongside the estimates follows the same indexing.
 
 ```{r load-rtdata}
 # We will eventually replace this with package data specific to the dataset. 
@@ -88,9 +90,10 @@ ggplot(all_data$cases) +
 Fit each of the packages to the dataset. See the package specific vignettes for more
 of a walk through for the decisions made for each package. 
 
-```{r EpiNow2}
 
-#EpiNow2
+### EpiNow2
+```{r EpiNow2, warning=FALSE, message=FALSE}
+
 incidence_df = data.frame(
   date = lubridate::make_date(2020, 3, 19) + 1:nrow(all_data$cases),
   confirm = as.vector(all_data$cases$daily_reports)
@@ -101,7 +104,7 @@ sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 
 
-res_epinow <- epinow(
+EpiNow2_obj <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
   delays = delay_opts(incubation_pmf + sym_report_delay_pmf),
@@ -109,9 +112,8 @@ res_epinow <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
-
 ```
-
+### EpiEstim
 ```{r EpiEstim}
 # reporting data with dates indexed by integers starting at 0
 incidence_df <- data.frame(
@@ -126,7 +128,7 @@ if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
 si_distr
 
 # Estimate R DAILY
-res_epiestim <- EpiEstim::estimate_R(
+EpiEstim_obj <- EpiEstim::estimate_R(
   incid = incidence_df,
   method = "non_parametric_si",
   config = make_config(list(
@@ -139,72 +141,104 @@ res_epiestim <- EpiEstim::estimate_R(
 
 ```
 
+### rtestim
 ```{r rtestim}
-res_rtestim <- cv_estimate_rt(
+rr <- 2:nrow(all_data$cases)
+
+rtestim_obj <- cv_estimate_rt(
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
-
 ```
 
-```{r EpiLPS}
-# discrete dist
+### EpiLPS
+```{r}
 si_spec <- Idist(probs = all_data$serial$Px)
-
-# incidence
 incidence = all_data$cases$daily_reports
 which(is.na(incidence))
 incidence[1] <- 0
-
-#
-res_EpiLPS <- estimR(incidence = incidence, si = si_spec$pvec)
-
+EpiLPS_obj <- estimR(incidence = incidence, si = si_spec$pvec)
 ```
 
-# Call the `SummRt` package to standardize the outputs 
+## Call the `SummRt` package to standardize the outputs 
 ```{r get-standardized-outputs}
-# EpiNow2
-EpiNow2_summrt <- summarize_rtestimate(res_epinow)
 
-# EpiEstim
-EpiEstim_summrt <- summarize_rtestimate(res_epiestim)
+std_EpiEstim <- summarize_rtestimate(EpiEstim_obj)
+std_EpiNow2 <- summarize_rtestimate(EpiNow2_obj)
+std_rtestim <- summarize_rtestimate(rtestim_obj)
+std_EpiLPS <- summarize_rtestimate(EpiLPS_obj)
 
-# rtestim
-Rtestim_summrt <- summarize_rtestimate(res_rtestim)
+# Put them all together into one dataframe
+convert_to_df <- function(output_summrt){
+  df <- tibble::tibble(output_summrt$estimates) |>
+  dplyr::mutate(package = output_summrt$package)
+}
 
-# EpiLPS
-EpiLPS_summrt <- summarize_rtestimate(res_EpiLPS)
+df <- tibble::tibble() |>
+  bind_rows(convert_to_df(std_EpiNow2)) |>
+  bind_rows(convert_to_df(std_rtestim)) |>
+  bind_rows(convert_to_df(std_EpiLPS)) |>
+  bind_rows(convert_to_df(std_EpiEstim)) |>
+  dplyr::left_join(
+    all_data$rt,
+    by = c("date" = "Day")
+  )
 
 ```
 
-# Plot the results from each method
-
+## Plot outputs 
+We're going to make a plot of the four R(t) estimates that result from
+the `summRt` output standardization, overlaid onto one another. 
+Eventually we will write functionality to combine these things nicely and
+plot them a few different ways. For now will just show how to do this
+via accessing the elements directly.
 ```{r plot-outputs}
-#source file with this_plot(), later will call function
 
+ggplot(data = df) +
+    geom_line(aes(x = date,
+                y = Rt),
+            linetype = "dashed") +
+  geom_line(
+    aes(x = date,
+                y = median,
+                color = package))+
+  geom_ribbon(
+    aes(x = date,
+                  ymin = lb,
+                  ymax = ub,
+              fill = package),
+              alpha = 0.1) +
+    scale_y_continuous(trans = "log10",
+                     limits = c(0.1, 10)) +
+    theme_bw() +
+    xlab('Time (days)') +
+    ylab('R(t)')
 
-# EpiNow2
-plot_epinow <- this_plot(pd=plot_data_epinow,
-                         title="EpiNow2",
-                         rt_sim=all_data$rt)
-
-# EpiEstim
-plot_epiestim <- this_plot(pd = EpiEstim_summrt, 
-                          title = "EpiEstim",
-                         rt_sim=all_data$rt)
-
-# Rtestim
-plot_rtestim <- this_plot(pd = Rtestim_summrt, 
-                          title = "Rtestim",
-                         rt_sim=all_data$rt)
-
-# EpiLPS
-plot_EpiLPS <- this_plot(pd = EpiLPS_summrt, 
-                          title = "EpiLPS",
-                         rt_sim=all_data$rt)
+# Also plot them faceted
+ggplot(data = df) +
+    geom_line(aes(x = date,
+                y = Rt),
+            linetype = "dashed") +
+  geom_line(
+    aes(x = date,
+                y = median,
+                color = package))+
+  geom_ribbon(
+    aes(x = date,
+                  ymin = lb,
+                  ymax = ub,
+              fill = package),
+              alpha = 0.1) +
+    scale_y_continuous(trans = "log10",
+                     limits = c(0.1, 10)) +
+    facet_wrap(~package) + 
+    theme_bw() +
+    xlab('Time (days)') +
+    ylab('R(t)')
 
 ```
+  
 
 ## Score the output of the R(t) model
 This will either be compared to ground truth simulated data or
