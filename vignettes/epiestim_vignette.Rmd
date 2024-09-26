@@ -16,13 +16,13 @@ sapply(list.files("../R", full.names = TRUE), source)
 # Install/load packages
 
 ```{r load_packages}
-if (!require('devtools')) install.packages('devtools'); library(devtools)
-if (!require('summrt')) devtools::install_github("EpiForeSITE/summrt"); library(summrt)
-if (!require('tidyverse')) install.packages('tidyverse'); library(tidyverse)
-if (!require('EpiEstim')) install.packages('EpiEstim', repos =  c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org')); library('EpiEstim')
-if (!require('ggplot2')) install.packages('ggplot2'); library(ggplot2)
-if (!require('lemon')) install.packages('lemon'); library(lemon)
-if (!require('ggtext')) install.packages('ggtext'); library(ggtext)
+library(devtools)
+library(summrt)
+library(tidyverse)
+library('EpiEstim')
+library(ggplot2)
+library(lemon)
+library(ggtext)
 ```
 
 # Load in the data
@@ -95,13 +95,14 @@ reportingdelay_shift <- round(weighted.mean(
 Plot data:
 
 ```{r plot_data}
-plot_data <- data.frame(
-  package = "EpiEstim",
-  date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
-  Rt_median = getR$R$`Median(R)`,
-  Rt_lb = getR$R$`Quantile.0.025(R)`,
-  Rt_ub = getR$R$`Quantile.0.975(R)`
-)
-
+# plot_data <- data.frame(
+#   package = "EpiEstim",
+#   date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
+#   Rt_median = getR$R$`Median(R)`,
+#   Rt_lb = getR$R$`Quantile.0.025(R)`,
+#   Rt_ub = getR$R$`Quantile.0.975(R)`
+# )
+plot_data <- summarize_rtestimate(getR)
 this_plot(plot_data, "EpiEstim")
+
 ```

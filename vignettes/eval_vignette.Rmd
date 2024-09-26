@@ -28,11 +28,15 @@ in R(t) but also nowcasting and forecasting expected observations and comparing 
 the true observations). 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+# install.packages('EpiEstim', repos = c('https://mrc-ide.r-universe.dev', 'https://cloud.r-project.org'))
+# devtools::install_github("EpiForeSITE/summrt")
+
 library(EpiNow2)
 library(EpiEstim)
 library(rtestim)
 library(EpiLPS)
-library(summrt)
+require(summRt)
 library(ggplot2)
 library (tidyverse)
 ```
@@ -50,6 +54,7 @@ mass function (PMF) and reporting delay PMF that are also provided as data.
 
 One of the goals of this evaluation using the `summrt` package is to standardize date/time indexing. All R(t) estimates from each package should be lined
 up such that the time vector returned alongside the estimates follows the same indexing.
+
 ```{r load-rtdata}
 # We will eventually replace this with package data specific to the dataset. 
 # E.g. this might be our baseline infections, onset, report data
@@ -85,6 +90,7 @@ ggplot(all_data$cases) +
 Fit each of the packages to the dataset. See the package specific vignettes for more
 of a walk through for the decisions made for each package. 
 
+
 ### EpiNow2
 ```{r EpiNow2, warning=FALSE, message=FALSE}
 
@@ -106,16 +112,17 @@ EpiNow2_obj <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
-
 ```
 ### EpiEstim
 ```{r EpiEstim}
+# reporting data with dates indexed by integers starting at 0
 incidence_df <- data.frame(
   dates = all_data$cases$day,
   I = as.vector(all_data$cases$daily_reports)
 )
 colnames(incidence_df) <- c('dates', 'I')
-# Serial interval from data PMF
+
+# Serial interval from data PMF-has leading 0 and is vector of probabilities
 si_distr <- as.matrix(all_data$serial$Px)
 if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
 si_distr
@@ -132,21 +139,6 @@ EpiEstim_obj <- EpiEstim::estimate_R(
   backimputation_window = 10
 )
 
-#
-INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day,
-                                       w = all_data$incubation$Px))
-
-REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day,
-                                           w = all_data$reporting_delay$Px))
-
-# PLOT DATA
-plot_data <- data.frame( ## ANNE
-  package = "EpiEstim",
-  date = all_data$cases$day[EpiEstim_obj$R$t_end] - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
-  Rt_median = EpiEstim_obj$R$`Median(R)`,
-  Rt_lb = EpiEstim_obj$R$`Quantile.0.025(R)`,
-  Rt_ub = EpiEstim_obj$R$`Quantile.0.975(R)`
-)
 ```
 
 ### rtestim
@@ -248,7 +240,6 @@ ggplot(data = df) +
 ```
   
 
-```
 ## Score the output of the R(t) model
 This will either be compared to ground truth simulated data or
 observations 
