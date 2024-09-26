@@ -1,0 +1,138 @@
+---
+title: "Epi LPS Rt Vignette"
+output: html_document
+date: "2024-09-25"
+---
+
+# Introduction
+
+This vignette provides an interactive example of **𝑅𝑡** estimation from incidence data using the **EpiLPS** package. **EpiLPS** utilizes *Laplacian-P-Splines* to provide rapid, bayesian estimates of the epidemic curve and instantaneous reproduction number among other functionalities.
+
+In this case, we are focusing specifically on the estimation of **𝑅𝑡** and demonstrating the use of **summrt** to standardize outputs from **EpiLPS** and related models to a predictable, cleaned format for cross-validation and performance evaluation.
+
+# Prepare the environment
+
+This vignette requires the following libraries:
+
+-   **EpiLPS:** estimates **𝑅𝑡**
+-   **tidyverse:** clean and format model data to tibbles for plotting
+-   **summrt:** standardizes outcome variable formats across epidemiological models
+
+## Install dependencies
+
+```{r}
+#install.packages('EpiLPS')
+#install.packages("tidyverse")
+#install.packages('summrt')
+```
+
+## Import libraries
+
+```{r}
+require(EpiLPS)
+require(tidyverse)
+#require(summrt)
+```
+
+# Load the data
+
+The evaluation data set contains synthetic data describing a simulated oubtreak for epi model cross validation. The ***all_data*** components used in this example include:
+
+-   ***incubation:*** daily weights declaring the distrubution of incubation periods
+-   ***serial\$px:*** daily weights declaring the distribution of the serial interval
+-   ***reporting delay:*** daily weights declaring the distribution of the reporting delay
+-   **r*t\$Rt_calc*:** **𝑅𝑡** curve used in the construction of the synthetic data
+-   ***cases\$daily reports*****:** daily reported cases with synthetic reporting delays
+
+**all_data** also contains additional attributes not directly usable by this model.
+
+```{r}
+url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
+all_data <- readRDS(url(url))
+```
+
+# Prepare model data structures
+
+In this section we convert the previously loaded input data into the formats expected by **EpiLPS**.
+
+## Extract the discrete distribution of the serial interval
+
+```{r}
+si_spec <- Idist(probs = all_data$serial$Px)
+```
+
+## Prepare incidence data
+
+Here we zero fill NaN rows.
+
+```{r}
+incidence = all_data$cases$daily_reports
+which(is.na(incidence))
+incidence[1] <- 0
+```
+
+# Run the model
+
+## Fit Rt from incidence and serial interval
+
+In this section we use Laplacian-P-Splines to compute **𝑅𝑡** from the serial interval probability vector and daily incidence curve via the ***estimR*** method.
+
+```{r}
+LPSfit <- estimR(incidence = incidence, si = si_spec$pvec)
+```
+
+## Apply time shifts
+
+Here we take the probability distributions for incubation time and reporting delays and aggregate and round them into the integer values expected by the model.
+
+```{r}
+INCUBATION_SHIFT = round(weighted.mean(x = all_data$incubation$Day, w = all_data$incubation$Px))
+
+REPORTINGDELAY_SHIFT = round(weighted.mean(x = all_data$reporting_delay$Day, w = all_data$reporting_delay$Px))
+```
+
+# Plot model results
+
+## Prepare plot data structure
+
+In this section we are extracting the percentile ranges from the modeled ***LPSfit*** and joining them into the output format expected by **ggplot**.
+
+```{r}
+plot_data <- data.frame(
+  package = "EpiLPS",
+  date = all_data$cases$day - INCUBATION_SHIFT - REPORTINGDELAY_SHIFT,
+  Rt_median = LPSfit$RLPS$Rq0.50,
+  Rt_lb = LPSfit$RLPS$Rq0.025,
+  Rt_ub = LPSfit$RLPS$Rq0.975
+)
+```
+
+## Create plot
+
+Here we plot the results of the modeled **𝑅𝑡** curve and it's distribution against the synthetic curve.
+
+```{r}
+as_tibble(plot_data) %>%
+  ggplot() +
+  geom_hline(yintercept = 1, linetype = "11") +
+  # *******
+  # this is the true r(t), back-calculated
+  geom_line(aes(x = Day, y = Rt_calc), data = all_data$rt) +
+  # *******
+  geom_ribbon(aes(x = date, ymin = Rt_lb, ymax = Rt_ub, fill = package),
+              alpha = 0.25) +
+  geom_line(aes(x = date, y = Rt_median, color = package)) +
+  coord_cartesian(ylim = c(0, 5)) +
+  xlab("Days") +
+  ylab("Rt") +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 14)
+  )
+```
+
+# Extract the outcomes using `summrt`
+
+```{r}
+#outcomes <- summrt(LPSfit)
+```

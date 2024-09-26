@@ -58,7 +58,10 @@ incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 ```
 
 # Run the model
+
+
 EpiNow2 takes in the reporting delay distribution. EpiNow2 uses rstan and we specify the option to have 4 chains. Finally, we print the total run time for the model.
+
 
 ```{r, include=FALSE}
 start.time <- Sys.time()
@@ -76,6 +79,7 @@ end.time <- Sys.time()
 run.time <- end.time-start.time
 
 print(run.time)
+
 
 saveRDS(res_epinow, "EpiNow2_report.RDS")
 
