@@ -1,7 +1,7 @@
 ---
 title: "Simple R(t) estimation evaluation comparison"
 description: "An R(t) evaluation across multiple packages, fitting to simulated data, standardizing outputs, and evaluating outputs"
-author: "Kaitlyn Johnson"
+author: 
 date: "2024-09-25"
 output:
   bookdown::html_vignette2:
@@ -39,6 +39,8 @@ library(EpiLPS)
 require(summRt)
 library(ggplot2)
 library (tidyverse)
+library(kableExtra)
+source(here::here("R/get_mae.R"))
 ```
 
 ## Load the simulated data
@@ -103,7 +105,7 @@ gi_pmf <- NonParametric(pmf = all_data$serial$Px)
 sym_report_delay_pmf <- NonParametric(pmf = all_data$reporting_delay$Px)
 incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 
-
+start.time <- Sys.time()
 EpiNow2_obj <- epinow(
   data = incidence_df,
   generation_time = generation_time_opts(gi_pmf),
@@ -112,6 +114,9 @@ EpiNow2_obj <- epinow(
   rt = rt_opts(rw = 1),
   stan = stan_opts(chains = 4, cores = 4)
 )
+end.time <- Sys.time()
+
+run.time.epinow <- end.time-start.time
 ```
 ### EpiEstim
 ```{r EpiEstim}
@@ -128,6 +133,7 @@ if (all_data$serial$Day[1] == 1) si_distr <- c(0, si_distr)
 si_distr
 
 # Estimate R DAILY
+start.time <- Sys.time()
 EpiEstim_obj <- EpiEstim::estimate_R(
   incid = incidence_df,
   method = "non_parametric_si",
@@ -138,18 +144,23 @@ EpiEstim_obj <- EpiEstim::estimate_R(
   )),
   backimputation_window = 10
 )
+end.time <- Sys.time()
+
+run.time.epiestim <- end.time-start.time
 
 ```
 
 ### rtestim
 ```{r rtestim}
 rr <- 2:nrow(all_data$cases)
-
+start.time <- Sys.time()
 rtestim_obj <- cv_estimate_rt(
   observed_counts = all_data$cases$daily_reports[rr],
   x = all_data$cases$day[rr],
   delay_distn = all_data$serial$Px
 )
+end.time <- Sys.time()
+run.time.rtestim <- end.time-start.time
 ```
 
 ### EpiLPS
@@ -158,7 +169,10 @@ si_spec <- Idist(probs = all_data$serial$Px)
 incidence = all_data$cases$daily_reports
 which(is.na(incidence))
 incidence[1] <- 0
+start.time <- Sys.time()
 EpiLPS_obj <- estimR(incidence = incidence, si = si_spec$pvec)
+end.time <- Sys.time()
+run.time.epilps <- end.time-start.time
 ```
 
 ## Call the `SummRt` package to standardize the outputs 
@@ -215,6 +229,7 @@ ggplot(data = df) +
     xlab('Time (days)') +
     ylab('R(t)')
 
+
 # Also plot them faceted
 ggplot(data = df) +
     geom_line(aes(x = date,
@@ -241,9 +256,27 @@ ggplot(data = df) +
   
 
 ## Score the output of the R(t) model
-This will either be compared to ground truth simulated data or
-observations 
+Run times and MAE for each model
 ```{r score-output}
+mae.epinow <- get_mae(pd = std_EpiNow2,                                                   rt_sim=all_data$rt)
+mae.epiestim <- get_mae(pd = std_EpiEstim,                                                   rt_sim=all_data$rt)
+mae.rtestim <- get_mae(pd = std_rtestim,                                                   rt_sim=all_data$rt)
+mae.epilps <- get_mae(pd = std_EpiLPS,                                                   rt_sim=all_data$rt)
+
+run.time.obj <- data.frame(Package=c("EpiNow2","EpiEstim","rtestim","EpiLPS"),
+                Run.Time=round(c(run.time.epinow,
+                                 run.time.epiestim,
+                                 run.time.rtestim,
+                                 run.time.epilps),3),
+                MAE=round(c(mae.epinow,
+                            mae.epiestim,
+                            mae.rtestim,
+                            mae.epilps),3))
+
+run.time.obj %>%
+  kbl() %>%
+  kable_styling()
+
 ```
 
 ## Compare scores from each package
