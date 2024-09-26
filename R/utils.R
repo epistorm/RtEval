@@ -29,7 +29,7 @@ this_plot <- function(pd, title,rt_sim) {
 ######################################################
 ## FUNCTION TO CALCULATE THE MAE FOR VECTOR OF RT   ##
 ######################################################
-get_mae(pd,rt_sim){
+get_mae <- function(pd,rt_sim){
   # pd is summarize.rtestimate object
   # rt_sim is true values of rt
 
