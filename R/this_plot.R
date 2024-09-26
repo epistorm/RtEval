@@ -1,7 +1,7 @@
 #####################################
 ## FUNCTION TO PLOT RESULTS        ##
 #####################################
-this_plot <- function(pd, title,rt_sim) {
+this_plot <- function(pd, title,rt_sim = NULL) {
   # pd is from summarize.rtestimate()
   # title is package/method name
   # rt_sim is data.frame with Day and true rt values, Rt_calc
