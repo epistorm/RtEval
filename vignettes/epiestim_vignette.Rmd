@@ -95,13 +95,14 @@ reportingdelay_shift <- round(weighted.mean(
 Plot data:
 
 ```{r plot_data}
-plot_data <- data.frame(
-  package = "EpiEstim",
-  date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
-  Rt_median = getR$R$`Median(R)`,
-  Rt_lb = getR$R$`Quantile.0.025(R)`,
-  Rt_ub = getR$R$`Quantile.0.975(R)`
-)
-
+# plot_data <- data.frame(
+#   package = "EpiEstim",
+#   date = all_data$cases$day[getR$R$t_end] - incubation_shift - reportingdelay_shift,
+#   Rt_median = getR$R$`Median(R)`,
+#   Rt_lb = getR$R$`Quantile.0.025(R)`,
+#   Rt_ub = getR$R$`Quantile.0.975(R)`
+# )
+plot_data <- summarize_rtestimate(getR)
 this_plot(plot_data, "EpiEstim")
+
 ```
