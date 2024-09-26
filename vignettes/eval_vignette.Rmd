@@ -279,12 +279,6 @@ run.time.obj %>%
 
 ```
 
-## Compare scores from each package
-Visual comparison of scores for each package
-```{r compare-scores-across-packages}
-```
 
 ## Discussion/Interpretation
 Which packages perform best on this dataset in what regimes? 
-E.g. EpiEstim most accurately captures perturbation,
-EpiNow2 performs best at nowcasting/forecasting observations
