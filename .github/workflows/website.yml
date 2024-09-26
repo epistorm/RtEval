@@ -82,17 +82,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: website/
+          path: .
 
       - name: Moving files
         run: |
-          mv website/*/ website/
+          mkdir _website
+          mv *_vignette/* _website/
       
       - name: Upload artifacts
         uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
-          path: website/
+          path: _website/
 
   deploy:
     # Deploy to the github-pages environment
