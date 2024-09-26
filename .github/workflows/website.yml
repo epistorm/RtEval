@@ -81,6 +81,9 @@ jobs:
     needs: build
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
       - uses: actions/download-artifact@v4
         with:
           path: .
@@ -89,9 +92,6 @@ jobs:
         run: |
           mkdir _website
           mv *_vignette/* _website/
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Render index page
         run: |
