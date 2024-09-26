@@ -4,7 +4,7 @@ output: html_document
 date: "2024-09-25"
 ---
 
-```{r,include=F}
+```{r}
 # load packages
 library(tidyverse)
 require(EpiNow2)
@@ -13,7 +13,7 @@ require(EpiNow2)
 # Load in the data
 We first load in the sample dataset that we have generated using Simulate.RMD. This list contains the incubation period (incubation), generation interval (generation), transmission interval (transmission), serial interval (serial), reporting delay distribution (reporting_delay), true values of $R_t$ (rt), and number of cases by infection, onset and report day (cases).
 
-```{r setup, include=FALSE}
+```{r setup}
 
 url <- "https://raw.githubusercontent.com/cmilando/RtEval/main/all_data.RDS"
 all_data <- readRDS(url(url))
@@ -22,7 +22,7 @@ all_data <- readRDS(url(url))
 # Prepare the data for analysis data
 We will evaluate the package using the daily report data. We set up the data to be a data frame with two columns. The first column has the date and the second column has the case counts. The data starts with a row with no cases.
 
-```{r, include=FALSE}
+```{r}
 # ********************************
 case_choice <- 'daily_reports'
 # Options: 'Daily Infections', 'Daily Onsets', 'Daily Reports'
@@ -63,7 +63,7 @@ incubation_pmf <- NonParametric(pmf = all_data$incubation$Px)
 EpiNow2 takes in the reporting delay distribution. EpiNow2 uses rstan and we specify the option to have 4 chains. Finally, we print the total run time for the model.
 
 
-```{r, include=FALSE}
+```{r}
 start.time <- Sys.time()
 #
 res_epinow <- epinow(
