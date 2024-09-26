@@ -8,6 +8,16 @@
 * In the future, we will summarise the output of each package consistently using the [`summrt`](https://github.com/EpiForeSITE/summrt) R package
 * We hope that this repository will contain evaluations which are run semi-regularly using [GitHub actions](https://docs.github.com/en/actions) so as to serve as a living, rather than static, comparison
 
+## Live vignettes
+
+The following vignettes (which are hosted under the [vignettes](vignettes) folder) were automatically built using GitHubActions:
+
+epiestim: <https://github.com/epistorm/RtEval/epiestim_vignette.html>
+EpiLPS: <https://github.com/epistorm/RtEval/EpiLPS_vignette.html>
+EpiNow2: <https://github.com/epistorm/RtEval/EpiNow2_vignette.html>
+RtEstim: <https://github.com/epistorm/RtEval/RtEstim_vignette.html>
+Joint: <https://github.com/epistorm/RtEval/eval_vignette.html>
+
 ## Structure
 
 Remains to scope!
