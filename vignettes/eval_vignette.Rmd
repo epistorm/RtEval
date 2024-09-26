@@ -40,7 +40,7 @@ require(summRt)
 library(ggplot2)
 library (tidyverse)
 library(kableExtra)
-source("get_mae.R")
+source(here::here("R/get_mae.R"))
 ```
 
 ## Load the simulated data
@@ -264,8 +264,14 @@ mae.rtestim <- get_mae(pd = std_rtestim,                                        
 mae.epilps <- get_mae(pd = std_EpiLPS,                                                   rt_sim=all_data$rt)
 
 run.time.obj <- data.frame(Package=c("EpiNow2","EpiEstim","rtestim","EpiLPS"),
-                Run.Time=round(c(run.time.epinow,run.time.epiestim,run.time.rtestim,run.time.epilps),3),
-                MAE=round(c(mae.epinow,mae.epiestim,mae.rtestim,mae.epilps),3))
+                Run.Time=round(c(run.time.epinow,
+                                 run.time.epiestim,
+                                 run.time.rtestim,
+                                 run.time.epilps),3),
+                MAE=round(c(mae.epinow,
+                            mae.epiestim,
+                            mae.rtestim,
+                            mae.epilps),3))
 
 run.time.obj %>%
   kbl() %>%
