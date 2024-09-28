@@ -80,6 +80,10 @@ jobs:
     container: rocker/tidyverse:4.4.0
     needs: build
 
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,9 +104,16 @@ jobs:
       
       - name: Upload artifacts
         uses: actions/upload-pages-artifact@v3
+        id: upload
         with:
           name: github-pages
           path: _website/
+
+      - name: Post preview
+        uses: gvegayon/actions/post-artifact
+        with:
+          artifact-id: ${{ steps.upload.outputs.artifact_id }}
+          artifact-name: 'pkgdown website'
 
   deploy:
     # Deploy to the github-pages environment
