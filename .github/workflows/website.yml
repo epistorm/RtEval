@@ -110,7 +110,7 @@ jobs:
           path: _website/
 
       - name: Post preview
-        uses: gvegayon/actions/post-artifact
+        uses: gvegayon/actions/post-artifact@main
         with:
           artifact-id: ${{ steps.upload.outputs.artifact_id }}
           artifact-name: 'pkgdown website'
