@@ -116,7 +116,7 @@ jobs:
       - name: Post preview
         uses: gvegayon/actions/post-artifact@main
         with:
-          artifact-name: 'pkgdown website'
+          artifact-name: github-pages
           python: 'python3'
           gh-token: ${{ secrets.GITHUB_TOKEN }}
 
