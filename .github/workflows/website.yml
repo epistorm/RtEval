@@ -83,8 +83,6 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-    env:
-      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout code
@@ -122,6 +120,7 @@ jobs:
           artifact-id: ${{ steps.upload.outputs.artifact_id }}
           artifact-name: 'pkgdown website'
           python: 'python3'
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     # Deploy to the github-pages environment
