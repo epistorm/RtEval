@@ -109,6 +109,11 @@ jobs:
           name: github-pages
           path: _website/
 
+      - name: Installing gh cli
+        run: |
+          apt update
+          apt install -y --no-install-recommends gh
+
       - name: Post preview
         uses: gvegayon/actions/post-artifact@main
         with:
