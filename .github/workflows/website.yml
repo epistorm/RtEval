@@ -83,6 +83,8 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout code
