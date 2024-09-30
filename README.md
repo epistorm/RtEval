@@ -69,3 +69,9 @@ This work is a part of the [Epistorm Rt Collabathon](https://www.epistorm.org/co
 * [Synthetic GLEAM data from Jessica Davis, Ph.D](https://github.com/epistorm/rt-collabathon-2024)  
 
 </details>
+
+## ToDo:
+
+Some remaining todo's include:
+
+* having some distributions vary over time in the simulated data (e.g., mean reporting delay gets shorter over time)
