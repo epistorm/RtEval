@@ -39,7 +39,7 @@ jobs:
         with:
           key: ${{ format('vignette-{0}-{1}', matrix.files.fn, hashFiles(format('./vignettes/{0}.Rmd', matrix.files.fn))) }}
           path:
-            ${{ format('vignettes/{0}.html', matrix.files.fn) }}
+            ${{ format('vignettes/{0}*', matrix.files.fn) }}
 
       - name: Install packages
         if: steps.cache.outputs.cache-hit != 'true'
@@ -52,23 +52,6 @@ jobs:
       - name: Render the file ${{ matrix.files.fn }}
         if: steps.cache.outputs.cache-hit != 'true'
         run: Rscript --vanilla -e 'rmarkdown::render("vignettes/${{ matrix.files.fn }}.Rmd", output_format = "rmarkdown::html_document")'
-
-
-      - name: Save cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          key: ${{ format('vignette-{0}-{1}', matrix.files.fn, hashFiles(format('./vignettes/{0}.Rmd', matrix.files.fn))) }}
-          path:
-            ${{ format('vignettes/{0}.html', matrix.files.fn) }}
-
-      - name: Restore cache
-        uses: actions/cache/restore@v3
-        if: steps.cache.outputs.cache-hit == 'true'
-        with:
-          key: ${{ format('vignette-{0}-{1}', matrix.files.fn, hashFiles(format('./vignettes/{0}.Rmd', matrix.files.fn))) }}
-          path:
-            ${{ format('vignettes/{0}.html', matrix.files.fn) }}
 
       - uses: actions/upload-artifact@v4
         with:
