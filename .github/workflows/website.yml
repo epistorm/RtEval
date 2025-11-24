@@ -109,12 +109,14 @@ jobs:
           path: _website/
 
       - name: Installing gh cli
+        if: github.event_name == 'pull_request'
         run: |
           apt update
           apt install -y --no-install-recommends gh
 
       - name: Post preview
-        uses: gvegayon/actions/post-artifact@main
+        if: github.event_name == 'pull_request'
+        uses: CDCgov/cfa-actions/post-artifact@v1.5.0
         with:
           artifact-name: github-pages
           python: 'python3'
