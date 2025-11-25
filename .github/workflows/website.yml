@@ -63,6 +63,10 @@ jobs:
     container: rocker/tidyverse:4.4.0
     needs: build
 
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,6 +90,20 @@ jobs:
         with:
           name: github-pages
           path: _website/
+
+      - name: Installing gh cli
+        if: github.event_name == 'pull_request'
+        run: |
+          apt update
+          apt install -y --no-install-recommends gh
+
+      - name: Post preview
+        if: github.event_name == 'pull_request'
+        uses: CDCgov/cfa-actions/post-artifact@v1.5.0
+        with:
+          artifact-name: github-pages
+          python: 'python3'
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     # Deploy to the github-pages environment
